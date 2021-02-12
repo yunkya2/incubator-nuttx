@@ -46,3 +46,5 @@ endif
 
 #CHIP_CSRCS  = nuc_clockconfig.c nuc_gpio.c nuc_irq.c nuc_lowputc.c
 #CHIP_CSRCS += nuc_serial.c nuc_start.c
+CHIP_CSRCS += rp2040_irq.c
+CHIP_CSRCS += rp2040_start.c
