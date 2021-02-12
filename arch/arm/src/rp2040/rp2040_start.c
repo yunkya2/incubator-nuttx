@@ -39,11 +39,14 @@
 //#include "rp2040_userspace.h"
 #include "rp2040_start.h"
 
+
+
 void up_idle(void)
 {
 }
 void arm_serialinit(void)
 {
+
 }
 void up_timer_initialize(void)
 {
@@ -53,7 +56,14 @@ void up_timer_initialize(void)
 
 int up_putc(int ch)
 {
-  while (*(unsigned int *)(RP2040_UART0_BASE + 0x18) & (1 << 5));
+  while (*(volatile unsigned int *)(RP2040_UART0_BASE + 0x18) & (1 << 5));
+
+  *(unsigned int *)RP2040_UART0_BASE = ch & 0xff;
+
+}
+int rp2040_lowputc(int ch)
+{
+  while (*(volatile unsigned int *)(RP2040_UART0_BASE + 0x18) & (1 << 5));
 
   *(unsigned int *)RP2040_UART0_BASE = ch & 0xff;
 
@@ -84,7 +94,8 @@ const uintptr_t g_idle_topstack = IDLE_STACK;
  *
  ****************************************************************************/
 
-#if defined(CONFIG_DEBUG_FEATURES) && defined(HAVE_SERIAL_CONSOLE)
+//#if defined(CONFIG_DEBUG_FEATURES) && defined(HAVE_SERIAL_CONSOLE)
+#if defined(CONFIG_DEBUG_FEATURES)
 #  define showprogress(c) rp2040_lowputc((uint32_t)c)
 #else
 #  define showprogress(c)
@@ -110,7 +121,7 @@ void __start(void)
   /* Configure the uart so that we can get debug output as soon as possible */
 
 //  rp2040_clockconfig();
-  rp2040_lowsetup();
+//  rp2040_lowsetup();
   showprogress('A');
 
   /* Clear .bss.  We'll do this inline (vs. calling memset) just to be
