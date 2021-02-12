@@ -90,7 +90,7 @@ static int up_attach(FAR struct uart_dev_s *dev);
 static void up_detach(FAR struct uart_dev_s *dev);
 static int up_interrupt(int irq, FAR void *context, FAR void *arg);
 static int up_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
-static int up_receive(FAR struct uart_dev_s *dev, FAR uint32_t *status);
+static int up_receive(FAR struct uart_dev_s *dev, FAR unsigned int *status);
 static void up_rxint(FAR struct uart_dev_s *dev, bool enable);
 static bool up_rxavailable(FAR struct uart_dev_s *dev);
 static void up_send(FAR struct uart_dev_s *dev, int ch);
@@ -138,7 +138,8 @@ static char g_uart1txbuffer[CONFIG_UART1_TXBUFSIZE];
 static struct up_dev_s g_uart0priv =
 {
   .uartbase  = RP2040_UART0_BASE,
-  .basefreq  = BOARD_UART0_BASEFREQ,
+//  .basefreq  = BOARD_UART0_BASEFREQ,
+  .basefreq  = 10000000,
   .baud      = CONFIG_UART0_BAUD,
   .id        = 1,
   .irq       = RP2040_UART0_IRQ,
@@ -331,7 +332,7 @@ static int up_setup(FAR struct uart_dev_s *dev)
 
   if (priv->stopbits2)
     {
-      lcr |= RP2040_UART0_UARTLCR_H_STP2
+      lcr |= RP2040_UART0_UARTLCR_H_STP2;
     }
 
   if (priv->parity == 1)
@@ -592,7 +593,7 @@ static int up_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         }
         break;
 #endif
-
+#if 0
       case TIOCSBRK: /* BSD compatibility: Turn break on, unconditionally */
         {
           irqstate_t flags = enter_critical_section();
@@ -615,7 +616,7 @@ static int up_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           while (!up_txempty(dev));
         }
         break;
-
+#endif
       default:
         ret = -ENOTTY;
         break;
@@ -634,7 +635,7 @@ static int up_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
  *
  ****************************************************************************/
 
-static int up_receive(FAR struct uart_dev_s *dev, FAR uint32_t *status)
+static int up_receive(FAR struct uart_dev_s *dev, FAR unsigned int *status)
 {
   FAR struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   uint32_t rbr;
