@@ -124,6 +124,12 @@ void __start(void)
 //  rp2040_lowsetup();
   showprogress('A');
 
+{
+  extern unsigned _vectors[];
+
+  *(volatile unsigned int *)0xe000ed08 = _vectors;
+}
+
   /* Clear .bss.  We'll do this inline (vs. calling memset) just to be
    * certain that there are no issues with the state of global variables.
    */
