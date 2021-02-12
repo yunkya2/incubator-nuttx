@@ -33,7 +33,7 @@
 #include "arm_arch.h"
 #include "arm_internal.h"
 
-//#include "rp2040_config.h"
+#include "rp2040_config.h"
 //#include "rp2040_clockconfig.h"
 //#include "rp2040_userspace.h"
 #include "rp2040_uart.h"
