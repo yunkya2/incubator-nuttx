@@ -39,27 +39,11 @@
 #include "rp2040_uart.h"
 #include "rp2040_start.h"
 
-
-
 void up_idle(void)
 {
 }
-void arm_serialinit(void)
-{
-
-}
 void up_timer_initialize(void)
 {
-}
-
-#include "hardware/rp2040_memorymap.h"
-
-int up_putc(int ch)
-{
-  while (*(volatile unsigned int *)(RP2040_UART0_BASE + 0x18) & (1 << 5));
-
-  *(unsigned int *)RP2040_UART0_BASE = ch & 0xff;
-
 }
 
 /****************************************************************************
@@ -151,7 +135,7 @@ void __start(void)
   /* Perform early serial initialization */
 
 #ifdef USE_EARLYSERIALINIT
-//  arm_earlyserialinit();
+  arm_earlyserialinit();
 #endif
   showprogress('D');
 
