@@ -39,9 +39,6 @@
 #include "rp2040_uart.h"
 #include "rp2040_start.h"
 
-void up_idle(void)
-{
-}
 void up_timer_initialize(void)
 {
 }
