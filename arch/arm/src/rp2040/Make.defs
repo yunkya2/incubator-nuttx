@@ -49,3 +49,4 @@ CHIP_CSRCS += rp2040_irq.c
 CHIP_CSRCS += rp2040_uart.c
 CHIP_CSRCS += rp2040_serial.c
 CHIP_CSRCS += rp2040_start.c
+CHIP_CSRCS += rp2040_timerisr.c
