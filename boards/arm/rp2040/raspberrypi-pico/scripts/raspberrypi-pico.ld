@@ -64,6 +64,10 @@ SECTIONS
 
     _eronly = ABSOLUTE(.);
 
+    .ram_vectors : {
+        *(.ram_vectors)
+    } > sram
+
     .data : {
         _sdata = ABSOLUTE(.);
         *(.data .data.*)

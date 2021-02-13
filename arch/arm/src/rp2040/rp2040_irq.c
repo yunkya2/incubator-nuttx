@@ -32,6 +32,7 @@
 #include <arch/irq.h>
 
 #include "nvic.h"
+#include "ram_vectors.h"
 #include "arm_arch.h"
 #include "arm_internal.h"
 
@@ -58,6 +59,12 @@
  */
 
 volatile uint32_t *g_current_regs[1];
+
+/* This is the address of the  exception vector table (determined by the
+ * linker script).
+ */
+
+extern uint32_t _vectors[];
 
 /****************************************************************************
  * Private Data
@@ -198,6 +205,23 @@ void up_irqinitialize(void)
   putreg32(DEFPRIORITY32, ARMV6M_SYSCON_SHPR2);
   putreg32(DEFPRIORITY32, ARMV6M_SYSCON_SHPR3);
 
+  /* Make sure that we are using the correct vector table.  The default
+   * vector address is 0x0000:0000 but if we are executing code that is
+   * positioned in SRAM or in external FLASH, then we may need to reset
+   * the interrupt vector so that it refers to the table in SRAM or in
+   * external FLASH.
+   */
+
+  putreg32((uint32_t)_vectors, ARMV6M_SYSCON_VECTAB);
+
+#ifdef CONFIG_ARCH_RAMVECTORS
+  /* If CONFIG_ARCH_RAMVECTORS is defined, then we are using a RAM-based
+   * vector table that requires special initialization.
+   */
+
+  arm_ramvec_initialize();
+#endif
+
   /* Now set all of the interrupt lines to the default priority */
 
   for (i = 0; i < 8; i++)
@@ -229,10 +253,9 @@ void up_irqinitialize(void)
 
   rp2040_dumpnvic("initial", NR_IRQS);
 
-#ifndef CONFIG_SUPPRESS_INTERRUPTS
-
   /* And finally, enable interrupts */
 
+#ifndef CONFIG_SUPPRESS_INTERRUPTS
   up_irq_enable();
 #endif
 }

@@ -228,6 +228,7 @@ config ARCH_CHIP_NUC1XX
 config ARCH_CHIP_RP2040
 	bool "Raspberry Pi RP2040"
 	select ARCH_CORTEXM0
+	select ARCH_HAVE_RAMVECTORS
 	---help---
 		Raspberry Pi RP2040 architectures (ARM Cortex-M0).
 
