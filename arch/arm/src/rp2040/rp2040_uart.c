@@ -175,7 +175,6 @@ void arm_lowputc(char ch)
 
 void rp2040_lowsetup(void)
 {
-#if 1
 #ifdef HAVE_UART
   /* Enable clocking and  for all console UART and disable power for
    * other UARTs
@@ -206,12 +205,10 @@ void rp2040_lowsetup(void)
 
 #endif
 #endif
-#endif
 }
 
 void rp2040_uart_setup(int ch)
 {
-#if 1
   uint32_t cr;
   uint32_t lcr;
 
@@ -222,7 +219,6 @@ void rp2040_uart_setup(int ch)
   putreg32(lcr & ~(1 << 4), g_uartdevs[ch].uartbase + RP2040_UART0_UARTLCR_H_OFFSET);
 
   putreg32(cr, g_uartdevs[ch].uartbase + RP2040_UART0_UARTCR_OFFSET);
-#endif
 }
 
 /****************************************************************************
@@ -232,7 +228,6 @@ void rp2040_uart_setup(int ch)
 
 void rp2040_setbaud(uintptr_t uartbase, uint32_t basefreq, uint32_t baud)
 {
-#if 1
   uint32_t ibrd;
   uint32_t fbrd;
   uint32_t div;
@@ -264,5 +259,4 @@ void rp2040_setbaud(uintptr_t uartbase, uint32_t basefreq, uint32_t baud)
 
 finish:
   leave_critical_section(flags);
-#endif
 }

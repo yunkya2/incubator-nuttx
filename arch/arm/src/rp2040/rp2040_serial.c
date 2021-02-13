@@ -38,7 +38,9 @@
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
+#include <nuttx/fs/ioctl.h>
 #include <nuttx/serial/serial.h>
+#include <nuttx/spinlock.h>
 
 #include <arch/board/board.h>
 
@@ -48,6 +50,8 @@
 
 #include "rp2040_config.h"
 #include "rp2040_serial.h"
+
+#define BOARD_UART0_BASEFREQ  125000000
 
 #define UART_INTR_ALL       (0x7ff)    /* All of interrupts */
 #define UART_LCR_WLEN(x)    ((((x)-5)&3)<<5)
@@ -138,8 +142,7 @@ static char g_uart1txbuffer[CONFIG_UART1_TXBUFSIZE];
 static struct up_dev_s g_uart0priv =
 {
   .uartbase  = RP2040_UART0_BASE,
-//  .basefreq  = BOARD_UART0_BASEFREQ,
-  .basefreq  = 10000000,
+  .basefreq  = BOARD_UART0_BASEFREQ,
   .baud      = CONFIG_UART0_BAUD,
   .id        = 1,
   .irq       = RP2040_UART0_IRQ,
@@ -564,12 +567,35 @@ static int up_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               break;
             }
 
-          /* TODO:  Other termios fields are not yet returned.
-           * Note that only cfsetospeed is not necessary because we have
-           * knowledge that only one speed is supported.
-           */
+          flags = spin_lock_irqsave(&priv->lock);
+
+          termiosp->c_cflag = ((priv->parity != 0) ? PARENB : 0) |
+                              ((priv->parity == 1) ? PARODD : 0) |
+                              ((priv->stopbits2) ? CSTOPB : 0);
 
           cfsetispeed(termiosp, priv->baud);
+
+          switch (priv->bits)
+            {
+              case 5:
+                termiosp->c_cflag |= CS5;
+                break;
+
+              case 6:
+                termiosp->c_cflag |= CS6;
+                break;
+
+              case 7:
+                termiosp->c_cflag |= CS7;
+                break;
+
+              case 8:
+              default:
+                termiosp->c_cflag |= CS8;
+                break;
+            }
+
+          spin_unlock_irqrestore(&priv->lock, flags);
         }
         break;
 
@@ -583,17 +609,49 @@ static int up_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               break;
             }
 
-          /* TODO:  Handle other termios settings.
-           * Note that only cfgetispeed is used besued we have knowledge
-           * that only one speed is supported.
-           */
+          flags = spin_lock_irqsave(&priv->lock);
+
+          switch (termiosp->c_cflag & CSIZE)
+            {
+              case CS5:
+                priv->bits = 5;
+                break;
+
+              case CS6:
+                priv->bits = 6;
+                break;
+
+              case CS7:
+                priv->bits = 7;
+                break;
+
+              case CS8:
+              default:
+                priv->bits = 8;
+                break;
+            }
+
+          if ((termiosp->c_cflag & PARENB) != 0)
+            {
+              priv->parity = (termiosp->c_cflag & PARODD) ? 1 : 2;
+            }
+          else
+            {
+              priv->parity = 0;
+            }
+
+          priv->stopbits2 = (termiosp->c_cflag & CSTOPB) != 0;
 
           priv->baud = cfgetispeed(termiosp);
-          rp2040_setbaud(priv->uartbase, priv->basefreq, priv->baud);
+
+          /* Configure the UART line format and speed. */
+
+          up_set_format(dev);
+          spin_unlock_irqrestore(&priv->lock, flags);
         }
         break;
 #endif
-#if 0
+
       case TIOCSBRK: /* BSD compatibility: Turn break on, unconditionally */
         {
           irqstate_t flags = enter_critical_section();
@@ -616,7 +674,7 @@ static int up_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           while (!up_txempty(dev));
         }
         break;
-#endif
+
       default:
         ret = -ENOTTY;
         break;
