@@ -43,11 +43,11 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define NVIC_VECTAB_TBLOFF_MASK     (0xffffff80)
+#define NVIC_VECTAB_TBLOFF_MASK     (0xffffff00)
 
 /* Alignment ****************************************************************/
 
-#define RAMVEC_ALIGN 128
+#define RAMVEC_ALIGN 256
 
 /****************************************************************************
  * Public Data
