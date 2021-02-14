@@ -34,8 +34,7 @@
 #include "arm_internal.h"
 
 #include "rp2040_config.h"
-//#include "rp2040_clockconfig.h"
-//#include "rp2040_userspace.h"
+#include "rp2040_clock.h"
 #include "rp2040_uart.h"
 #include "rp2040_start.h"
 
@@ -89,7 +88,7 @@ void __start(void)
 
   /* Configure the uart so that we can get debug output as soon as possible */
 
-//  rp2040_clockconfig();
+  rp2040_clockconfig();
   rp2040_lowsetup();
   showprogress('A');
 
