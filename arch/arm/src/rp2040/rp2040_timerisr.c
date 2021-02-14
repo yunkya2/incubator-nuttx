@@ -43,7 +43,8 @@
  ****************************************************************************/
 /* Get the frequency of the selected clock source */
 
-#define SYSTICK_CLOCK 125000000
+//#define SYSTICK_CLOCK 125000000
+#define SYSTICK_CLOCK 500000
 
 /* The desired timer interrupt frequency is provided by the definition
  * CLK_TCK (see include/time.h).  CLK_TCK defines the desired number of
@@ -83,9 +84,10 @@
  *   of the systems.
  *
  ****************************************************************************/
-
+#include "hardware/rp2040_sio.h"
 static int rp2040_timerisr(int irq, uint32_t *regs, void *arg)
 {
+  putreg32(1 << 25, RP2040_SIO_GPIO_OUT_XOR);
   /* Process timer interrupt */
 
   nxsched_process_timer();

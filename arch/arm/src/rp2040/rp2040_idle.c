@@ -73,6 +73,10 @@
  *
  ****************************************************************************/
 
+#include "arm_arch.h"
+#include "chip.h"
+#include "hardware/rp2040_memorymap.h"
+#include "hardware/rp2040_sio.h"
 void up_idle(void)
 {
 #if defined(CONFIG_SUPPRESS_INTERRUPTS) || defined(CONFIG_SUPPRESS_TIMER_INTS)
@@ -85,8 +89,9 @@ void up_idle(void)
 
   /* Sleep until an interrupt occurs to save power */
 
-  BEGIN_IDLE();
-  asm("WFI");
-  END_IDLE();
+//  BEGIN_IDLE();
+//  asm("WFI");
+//  END_IDLE();
+  putreg32(1 << 25, RP2040_SIO_GPIO_OUT_XOR);
 #endif
 }
