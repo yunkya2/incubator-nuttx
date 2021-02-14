@@ -194,7 +194,7 @@ void rp2040_lowsetup(void)
     val = getreg32(CONSOLE_BASE + RP2040_UART0_UARTCR_OFFSET);
     if (val & RP2040_UART0_UARTCR_UARTEN)
       {
-        return;
+//        return;
       }
   }
 
@@ -217,7 +217,7 @@ void rp2040_uart_setup(int ch)
 
   lcr = getreg32(g_uartdevs[ch].uartbase + RP2040_UART0_UARTLCR_H_OFFSET);
   putreg32(lcr & ~(1 << 4), g_uartdevs[ch].uartbase + RP2040_UART0_UARTLCR_H_OFFSET);
-
+  cr |= 1 << 0;
   putreg32(cr, g_uartdevs[ch].uartbase + RP2040_UART0_UARTCR_OFFSET);
 }
 
