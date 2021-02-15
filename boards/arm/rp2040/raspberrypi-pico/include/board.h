@@ -35,4 +35,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#define BOARD_TICK_CLOCK  1000000
+
 #endif /* __BOARDS_ARM_RP2040_RASPBERRYPI_PICO_INCLUDE_BOARD_H */
