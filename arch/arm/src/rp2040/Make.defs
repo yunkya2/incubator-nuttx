@@ -55,3 +55,5 @@ CHIP_CSRCS += rp2040_serial.c
 CHIP_CSRCS += rp2040_start.c
 CHIP_CSRCS += rp2040_clock.c
 CHIP_CSRCS += rp2040_timerisr.c
+
+HEAD_ASRC += bs2_default_padded_checksummed.S
