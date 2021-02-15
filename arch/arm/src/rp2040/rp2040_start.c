@@ -109,7 +109,7 @@ void __start(void)
    * end of all of the other read-only data (.text, .rodata) at _eronly.
    */
 
-#if 0
+#ifdef CONFIG_RP2040_FLASH_BOOT
   for (src = &_eronly, dest = &_sdata; dest < &_edata; )
     {
       *dest++ = *src++;

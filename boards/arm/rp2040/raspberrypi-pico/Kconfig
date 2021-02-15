@@ -4,4 +4,9 @@
 #
 
 if ARCH_BOARD_RASPBERRYPI_PICO
+
+config RP2040_FLASH_BOOT
+	bool "flash boot"
+	default n
+
 endif
