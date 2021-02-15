@@ -51,11 +51,6 @@
 #include "rp2040_config.h"
 #include "rp2040_serial.h"
 
-#define BOARD_UART0_BASEFREQ  125000000
-
-#define UART_INTR_ALL       (0x7ff)    /* All of interrupts */
-#define UART_LCR_WLEN(x)    ((((x)-5)&3)<<5)
-
 /****************************************************************************
  * Pre-processor definitions
  ****************************************************************************/
@@ -142,7 +137,7 @@ static char g_uart1txbuffer[CONFIG_UART1_TXBUFSIZE];
 static struct up_dev_s g_uart0priv =
 {
   .uartbase  = RP2040_UART0_BASE,
-  .basefreq  = BOARD_UART0_BASEFREQ,
+  .basefreq  = BOARD_UART_BASEFREQ,
   .baud      = CONFIG_UART0_BAUD,
   .id        = 1,
   .irq       = RP2040_UART0_IRQ,
@@ -175,7 +170,7 @@ static uart_dev_t g_uart0port =
 static struct up_dev_s g_uart1priv =
 {
   .uartbase  = RP2040_UART1_BASE,
-  .basefreq  = BOARD_UART1_BASEFREQ,
+  .basefreq  = BOARD_UART_BASEFREQ,
   .baud      = CONFIG_UART1_BAUD,
   .id        = 1,
   .irq       = RP2040_UART1_IRQ,
@@ -247,11 +242,11 @@ static inline void up_disableuartint(FAR struct up_dev_s *priv,
   flags = enter_critical_section();
   if (ier)
     {
-      *ier = priv->ier & UART_INTR_ALL;
+      *ier = priv->ier & RP2040_UART_INTR_ALL;
     }
 
-  priv->ier &= ~UART_INTR_ALL;
-  up_serialout(priv, RP2040_UART0_UARTIMSC_OFFSET, priv->ier);
+  priv->ier &= ~RP2040_UART_INTR_ALL;
+  up_serialout(priv, RP2040_UART_UARTIMSC_OFFSET, priv->ier);
   leave_critical_section(flags);
 }
 
@@ -264,8 +259,8 @@ static inline void up_restoreuartint(FAR struct up_dev_s *priv, uint32_t ier)
   irqstate_t flags;
 
   flags = enter_critical_section();
-  priv->ier |= ier & UART_INTR_ALL;
-  up_serialout(priv, RP2040_UART0_UARTIMSC_OFFSET, priv->ier);
+  priv->ier |= ier & RP2040_UART_INTR_ALL;
+  up_serialout(priv, RP2040_UART_UARTIMSC_OFFSET, priv->ier);
   leave_critical_section(flags);
 }
 
@@ -275,17 +270,17 @@ static inline void up_restoreuartint(FAR struct up_dev_s *priv, uint32_t ier)
 
 static inline void up_enablebreaks(FAR struct up_dev_s *priv, bool enable)
 {
-  uint32_t lcr = up_serialin(priv, RP2040_UART0_UARTLCR_H_OFFSET);
+  uint32_t lcr = up_serialin(priv, RP2040_UART_UARTLCR_H_OFFSET);
   if (enable)
     {
-      lcr |= RP2040_UART0_UARTLCR_H_BRK;
+      lcr |= RP2040_UART_UARTLCR_H_BRK;
     }
   else
     {
-      lcr &= ~RP2040_UART0_UARTLCR_H_BRK;
+      lcr &= ~RP2040_UART_UARTLCR_H_BRK;
     }
 
-  up_serialout(priv, RP2040_UART0_UARTLCR_H_OFFSET, lcr);
+  up_serialout(priv, RP2040_UART_UARTLCR_H_OFFSET, lcr);
 }
 
 /****************************************************************************
@@ -304,18 +299,16 @@ static int up_setup(FAR struct uart_dev_s *dev)
   uint32_t lcr;
   uint32_t cr;
 
-  rp2040_uart_setup(priv->id);
-
   /* Init HW */
 
-  up_serialout(priv, RP2040_UART0_UARTCR_OFFSET, 0);
-  up_serialout(priv, RP2040_UART0_UARTLCR_H_OFFSET, 0);
-  up_serialout(priv, RP2040_UART0_UARTDMACR_OFFSET, 0);
-  up_serialout(priv, RP2040_UART0_UARTRSR_OFFSET, 0xf);
+  up_serialout(priv, RP2040_UART_UARTCR_OFFSET, 0);
+  up_serialout(priv, RP2040_UART_UARTLCR_H_OFFSET, 0);
+  up_serialout(priv, RP2040_UART_UARTDMACR_OFFSET, 0);
+  up_serialout(priv, RP2040_UART_UARTRSR_OFFSET, 0xf);
 
   /* Set up the IER */
 
-  priv->ier = up_serialin(priv, RP2040_UART0_UARTIMSC_OFFSET);
+  priv->ier = up_serialin(priv, RP2040_UART_UARTIMSC_OFFSET);
 
   /* Set the BAUD divisor */
 
@@ -326,44 +319,44 @@ static int up_setup(FAR struct uart_dev_s *dev)
   lcr = 0;
   if (priv->bits == 7)
     {
-      lcr |= UART_LCR_WLEN(7);
+      lcr |= RP2040_UART_LCR_H_WLEN(7);
     }
   else
     {
-      lcr |= UART_LCR_WLEN(8);
+      lcr |= RP2040_UART_LCR_H_WLEN(8);
     }
 
   if (priv->stopbits2)
     {
-      lcr |= RP2040_UART0_UARTLCR_H_STP2;
+      lcr |= RP2040_UART_UARTLCR_H_STP2;
     }
 
   if (priv->parity == 1)
     {
-      lcr |= (RP2040_UART0_UARTLCR_H_PEN);
+      lcr |= (RP2040_UART_UARTLCR_H_PEN);
     }
   else if (priv->parity == 2)
     {
-      lcr |= (RP2040_UART0_UARTLCR_H_PEN | RP2040_UART0_UARTLCR_H_EPS);
+      lcr |= (RP2040_UART_UARTLCR_H_PEN | RP2040_UART_UARTLCR_H_EPS);
     }
 
   /* Save the LCR */
 
-  up_serialout(priv, RP2040_UART0_UARTLCR_H_OFFSET, lcr);
+  up_serialout(priv, RP2040_UART_UARTLCR_H_OFFSET, lcr);
 
-  up_serialout(priv, RP2040_UART0_UARTIFLS_OFFSET, 0);
-  up_serialout(priv, RP2040_UART0_UARTICR_OFFSET, 0x7ff);
+  up_serialout(priv, RP2040_UART_UARTIFLS_OFFSET, 0);
+  up_serialout(priv, RP2040_UART_UARTICR_OFFSET, 0x7ff);
 
-  cr = RP2040_UART0_UARTCR_RXE | RP2040_UART0_UARTCR_TXE;
+  cr = RP2040_UART_UARTCR_RXE | RP2040_UART_UARTCR_TXE;
 
-  up_serialout(priv, RP2040_UART0_UARTCR_OFFSET, cr);
+  up_serialout(priv, RP2040_UART_UARTCR_OFFSET, cr);
 
   /* Enable FIFO and UART in the last */
 
-  lcr |= RP2040_UART0_UARTLCR_H_FEN;
-  up_serialout(priv, RP2040_UART0_UARTLCR_H_OFFSET, lcr);
-  cr |= RP2040_UART0_UARTCR_UARTEN;
-  up_serialout(priv, RP2040_UART0_UARTCR_OFFSET, cr);
+  lcr |= RP2040_UART_UARTLCR_H_FEN;
+  up_serialout(priv, RP2040_UART_UARTLCR_H_OFFSET, lcr);
+  cr |= RP2040_UART_UARTCR_UARTEN;
+  up_serialout(priv, RP2040_UART_UARTCR_OFFSET, cr);
 #endif
 
   return OK;
@@ -470,52 +463,52 @@ static int up_interrupt(int irq, FAR void *context, FAR void *arg)
        * termination conditions
        */
 
-      status = up_serialin(priv, RP2040_UART0_UARTMIS_OFFSET);
+      status = up_serialin(priv, RP2040_UART_UARTMIS_OFFSET);
       if (status == 0)
         {
           return OK;
         }
 
-      up_serialout(priv, RP2040_UART0_UARTICR_OFFSET, status);
-      if (status & RP2040_UART0_UARTICR_RIMIC)
+      up_serialout(priv, RP2040_UART_UARTICR_OFFSET, status);
+      if (status & RP2040_UART_UARTICR_RIMIC)
         {
         }
 
-      if (status & RP2040_UART0_UARTICR_CTSMIC)
+      if (status & RP2040_UART_UARTICR_CTSMIC)
         {
         }
 
-      if (status & RP2040_UART0_UARTICR_DCDMIC)
+      if (status & RP2040_UART_UARTICR_DCDMIC)
         {
         }
 
-      if (status & RP2040_UART0_UARTICR_DSRMIC)
+      if (status & RP2040_UART_UARTICR_DSRMIC)
         {
         }
 
-      if (status & (RP2040_UART0_UARTICR_RXIC | RP2040_UART0_UARTICR_RTIC))
+      if (status & (RP2040_UART_UARTICR_RXIC | RP2040_UART_UARTICR_RTIC))
         {
           uart_recvchars(dev);
         }
 
-      if (status & RP2040_UART0_UARTICR_TXIC)
+      if (status & RP2040_UART_UARTICR_TXIC)
         {
           uart_xmitchars(dev);
         }
 
-      if (status & RP2040_UART0_UARTICR_FEIC)
+      if (status & RP2040_UART_UARTICR_FEIC)
         {
         }
 
-      if (status & RP2040_UART0_UARTICR_PEIC)
+      if (status & RP2040_UART_UARTICR_PEIC)
         {
         }
 
-      if (status & RP2040_UART0_UARTICR_BEIC)
+      if (status & RP2040_UART_UARTICR_BEIC)
         {
         }
 
-      if (status & RP2040_UART0_UARTICR_OEIC)
+      if (status & RP2040_UART_UARTICR_OEIC)
         {
         }
     }
@@ -698,7 +691,7 @@ static int up_receive(FAR struct uart_dev_s *dev, FAR unsigned int *status)
   FAR struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   uint32_t rbr;
 
-  rbr     = up_serialin(priv, RP2040_UART0_UARTDR_OFFSET);
+  rbr     = up_serialin(priv, RP2040_UART_UARTDR_OFFSET);
   *status = rbr & 0xf00;
   return rbr & 0xff;
 }
@@ -720,15 +713,15 @@ static void up_rxint(FAR struct uart_dev_s *dev, bool enable)
   if (enable)
     {
 #ifndef CONFIG_SUPPRESS_SERIAL_INTS
-      priv->ier |= (RP2040_UART0_UARTICR_RXIC | RP2040_UART0_UARTICR_RTIC);
+      priv->ier |= (RP2040_UART_UARTICR_RXIC | RP2040_UART_UARTICR_RTIC);
 #endif
     }
   else
     {
-      priv->ier &= ~(RP2040_UART0_UARTICR_RXIC | RP2040_UART0_UARTICR_RTIC);
+      priv->ier &= ~(RP2040_UART_UARTICR_RXIC | RP2040_UART_UARTICR_RTIC);
     }
 
-  up_serialout(priv, RP2040_UART0_UARTIMSC_OFFSET, priv->ier);
+  up_serialout(priv, RP2040_UART_UARTIMSC_OFFSET, priv->ier);
   leave_critical_section(flags);
 }
 
@@ -743,7 +736,7 @@ static void up_rxint(FAR struct uart_dev_s *dev, bool enable)
 static bool up_rxavailable(FAR struct uart_dev_s *dev)
 {
   FAR struct up_dev_s *priv = (FAR struct up_dev_s *)dev->priv;
-  return ((up_serialin(priv, RP2040_UART0_UARTFR_OFFSET) & RP2040_UART0_UARTFR_RXFE) == 0);
+  return ((up_serialin(priv, RP2040_UART_UARTFR_OFFSET) & RP2040_UART_UARTFR_RXFE) == 0);
 }
 
 /****************************************************************************
@@ -757,7 +750,7 @@ static bool up_rxavailable(FAR struct uart_dev_s *dev)
 static void up_send(FAR struct uart_dev_s *dev, int ch)
 {
   FAR struct up_dev_s *priv = (FAR struct up_dev_s *)dev->priv;
-  up_serialout(priv, RP2040_UART0_UARTDR_OFFSET, (uint32_t)ch);
+  up_serialout(priv, RP2040_UART_UARTDR_OFFSET, (uint32_t)ch);
 }
 
 /****************************************************************************
@@ -777,8 +770,8 @@ static void up_txint(FAR struct uart_dev_s *dev, bool enable)
   if (enable)
     {
 #ifndef CONFIG_SUPPRESS_SERIAL_INTS
-      priv->ier |= RP2040_UART0_UARTICR_TXIC;
-      up_serialout(priv, RP2040_UART0_UARTIMSC_OFFSET, priv->ier);
+      priv->ier |= RP2040_UART_UARTICR_TXIC;
+      up_serialout(priv, RP2040_UART_UARTIMSC_OFFSET, priv->ier);
 
       /* Fake a TX interrupt here by just calling uart_xmitchars() with
        * interrupts disabled (note this may recurse).
@@ -789,8 +782,8 @@ static void up_txint(FAR struct uart_dev_s *dev, bool enable)
     }
   else
     {
-      priv->ier &= ~RP2040_UART0_UARTICR_TXIC;
-      up_serialout(priv, RP2040_UART0_UARTIMSC_OFFSET, priv->ier);
+      priv->ier &= ~RP2040_UART_UARTICR_TXIC;
+      up_serialout(priv, RP2040_UART_UARTIMSC_OFFSET, priv->ier);
     }
 
   leave_critical_section(flags);
@@ -807,7 +800,7 @@ static void up_txint(FAR struct uart_dev_s *dev, bool enable)
 static bool up_txready(FAR struct uart_dev_s *dev)
 {
   FAR struct up_dev_s *priv = (FAR struct up_dev_s *)dev->priv;
-  return ((up_serialin(priv, RP2040_UART0_UARTFR_OFFSET) & RP2040_UART0_UARTFR_TXFF) == 0);
+  return ((up_serialin(priv, RP2040_UART_UARTFR_OFFSET) & RP2040_UART_UARTFR_TXFF) == 0);
 }
 
 /****************************************************************************
@@ -822,8 +815,8 @@ static bool up_txempty(FAR struct uart_dev_s *dev)
 {
   FAR struct up_dev_s *priv = (FAR struct up_dev_s *)dev->priv;
   uint32_t rbr = 0;
-  rbr = up_serialin(priv, RP2040_UART0_UARTFR_OFFSET);
-  return (((rbr & RP2040_UART0_UARTFR_TXFE) != 0) && ((rbr & RP2040_UART0_UARTFR_BUSY) == 0));
+  rbr = up_serialin(priv, RP2040_UART_UARTFR_OFFSET);
+  return (((rbr & RP2040_UART_UARTFR_TXFE) != 0) && ((rbr & RP2040_UART_UARTFR_BUSY) == 0));
 }
 
 /****************************************************************************

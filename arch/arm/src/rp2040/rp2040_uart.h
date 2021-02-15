@@ -27,7 +27,7 @@
 
 #include <nuttx/config.h>
 #include "chip.h"
-#include "hardware/rp2040_uart0.h"
+#include "hardware/rp2040_uart01.h"
 
 /************************************************************************************
  * Public Function Prototypes
@@ -44,7 +44,6 @@ extern "C" {
 #endif
 
 void rp2040_lowsetup(void);
-void rp2040_uart_setup(int ch);
 void rp2040_setbaud(uintptr_t uartbase, uint32_t basefreq, uint32_t baud);
 
 #undef EXTERN

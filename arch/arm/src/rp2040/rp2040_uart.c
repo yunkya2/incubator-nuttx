@@ -38,11 +38,6 @@
 #include "rp2040_config.h"
 #include "rp2040_uart.h"
 
-#define BOARD_UART0_BASEFREQ  125000000
-
-#define UART_INTR_ALL       (0x7ff)    /* All of interrupts */
-#define UART_LCR_WLEN(x)    ((((x)-5)&3)<<5)
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -51,14 +46,14 @@
 
 #if defined(CONFIG_UART0_SERIAL_CONSOLE)
  #define CONSOLE_BASE     RP2040_UART0_BASE
- #define CONSOLE_BASEFREQ BOARD_UART0_BASEFREQ
+ #define CONSOLE_BASEFREQ BOARD_UART_BASEFREQ
  #define CONSOLE_BAUD     CONFIG_UART0_BAUD
  #define CONSOLE_BITS     CONFIG_UART0_BITS
  #define CONSOLE_PARITY   CONFIG_UART0_PARITY
  #define CONSOLE_2STOP    CONFIG_UART0_2STOP
 #elif defined(CONFIG_UART1_SERIAL_CONSOLE)
  #define CONSOLE_BASE     RP2040_UART1_BASE
- #define CONSOLE_BASEFREQ BOARD_UART1_BASEFREQ
+ #define CONSOLE_BASEFREQ BOARD_UART_BASEFREQ
  #define CONSOLE_BAUD     CONFIG_UART1_BAUD
  #define CONSOLE_BITS     CONFIG_UART1_BITS
  #define CONSOLE_PARITY   CONFIG_UART1_PARITY
@@ -70,7 +65,7 @@
 /* Get word length setting for the console */
 
 #if CONSOLE_BITS >= 5 && CONSOLE_BITS <= 8
- #define CONSOLE_LCR_WLS UART_LCR_WLEN(CONSOLE_BITS)
+ #define CONSOLE_LCR_WLS RP2040_UART_LCR_H_WLEN(CONSOLE_BITS)
 #elif defined(HAVE_CONSOLE)
  #error "Invalid CONFIG_UARTn_BITS setting for console "
 #endif
@@ -80,13 +75,9 @@
 #if CONSOLE_PARITY == 0
  #define CONSOLE_LCR_PAR 0
 #elif CONSOLE_PARITY == 1
- #define CONSOLE_LCR_PAR (UART_LCR_PEN)
+ #define CONSOLE_LCR_PAR (RP2040_UART_UARTLCR_H_PEN)
 #elif CONSOLE_PARITY == 2
- #define CONSOLE_LCR_PAR (UART_LCR_PEN | UART_LCR_EPS)
-#elif CONSOLE_PARITY == 3
- #define CONSOLE_LCR_PAR (UART_LCR_PEN | UART_LCR_SPS)
-#elif CONSOLE_PARITY == 4
- #define CONSOLE_LCR_PAR (UART_LCR_PEN | UART_LCR_EPS | UART_LCR_SPS)
+ #define CONSOLE_LCR_PAR (RP2040_UART_UARTLCR_H_PEN | RP2040_UART_UARTLCR_H_EPS)
 #elif defined(HAVE_CONSOLE)
  #error "Invalid CONFIG_UARTn_PARITY setting for CONSOLE"
 #endif
@@ -94,7 +85,7 @@
 /* Get stop-bit setting for the console and UART0/1/2 */
 
 #if CONSOLE_2STOP != 0
- #define CONSOLE_LCR_STOP UART_LCR_STP2
+ #define CONSOLE_LCR_STOP RP2040_UART_UARTLCR_H_STP2
 #else
  #define CONSOLE_LCR_STOP 0
 #endif
@@ -107,11 +98,6 @@
  * Private Types
  ****************************************************************************/
 
-struct uartdev
-{
-  uintptr_t uartbase; /* Base address of UART registers */
-};
-
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -123,16 +109,6 @@ struct uartdev
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-
-static struct uartdev g_uartdevs[] =
-{
-  {
-    RP2040_UART0_BASE
-  },
-  {
-    RP2040_UART1_BASE
-  },
-};
 
 /****************************************************************************
  * Private Functions
@@ -155,11 +131,11 @@ void arm_lowputc(char ch)
 #if defined HAVE_UART && defined HAVE_CONSOLE
   /* Wait for the transmitter to be available */
 
-  while ((getreg32(CONSOLE_BASE + RP2040_UART0_UARTFR_OFFSET) & RP2040_UART0_UARTFR_TXFF));
+  while ((getreg32(CONSOLE_BASE + RP2040_UART_UARTFR_OFFSET) & RP2040_UART_UARTFR_TXFF));
 
   /* Send the character */
 
-  putreg32((uint32_t)ch, CONSOLE_BASE + RP2040_UART0_UARTDR_OFFSET);
+  putreg32((uint32_t)ch, CONSOLE_BASE + RP2040_UART_UARTDR_OFFSET);
 #endif
 }
 
@@ -175,50 +151,20 @@ void arm_lowputc(char ch)
 
 void rp2040_lowsetup(void)
 {
-#ifdef HAVE_UART
-  /* Enable clocking and  for all console UART and disable power for
-   * other UARTs
-   */
-
-#if defined(CONFIG_UART0_SERIAL_CONSOLE)
-  rp2040_uart_setup(0);
-#elif defined(CONFIG_UART1_SERIAL_CONSOLE)
-  rp2040_uart_setup(1);
-#endif
-
-  /* Configure the console (only) */
-
 #if defined(HAVE_CONSOLE) && !defined(CONFIG_SUPPRESS_UART_CONFIG)
-  {
-    uint32_t val;
-    val = getreg32(CONSOLE_BASE + RP2040_UART0_UARTCR_OFFSET);
-    if (val & RP2040_UART0_UARTCR_UARTEN)
-      {
-//        return;
-      }
-  }
-
-  putreg32(CONSOLE_LCR_VALUE, CONSOLE_BASE + RP2040_UART0_UARTLCR_H_OFFSET);
-  rp2040_setbaud(CONSOLE_BASE, CONSOLE_BASEFREQ, CONSOLE_BAUD);
-  putreg32(0, CONSOLE_BASE + RP2040_UART0_UARTIFLS_OFFSET);
-  putreg32(UART_INTR_ALL, CONSOLE_BASE + RP2040_UART0_UARTICR_OFFSET);
-
-#endif
-#endif
-}
-
-void rp2040_uart_setup(int ch)
-{
   uint32_t cr;
-  uint32_t lcr;
 
-  cr = getreg32(g_uartdevs[ch].uartbase + RP2040_UART0_UARTCR_OFFSET);
-  putreg32(cr & ~(1 << 0), g_uartdevs[ch].uartbase + RP2040_UART0_UARTCR_OFFSET);
+  cr = getreg32(CONSOLE_BASE + RP2040_UART_UARTCR_OFFSET);
+  putreg32(cr & ~RP2040_UART_UARTCR_UARTEN, CONSOLE_BASE + RP2040_UART_UARTCR_OFFSET);
 
-  lcr = getreg32(g_uartdevs[ch].uartbase + RP2040_UART0_UARTLCR_H_OFFSET);
-  putreg32(lcr & ~(1 << 4), g_uartdevs[ch].uartbase + RP2040_UART0_UARTLCR_H_OFFSET);
-  cr |= 1 << 0;
-  putreg32(cr, g_uartdevs[ch].uartbase + RP2040_UART0_UARTCR_OFFSET);
+  putreg32(CONSOLE_LCR_VALUE, CONSOLE_BASE + RP2040_UART_UARTLCR_H_OFFSET);
+  rp2040_setbaud(CONSOLE_BASE, CONSOLE_BASEFREQ, CONSOLE_BAUD);
+  putreg32(0, CONSOLE_BASE + RP2040_UART_UARTIFLS_OFFSET);
+  putreg32(RP2040_UART_INTR_ALL, CONSOLE_BASE + RP2040_UART_UARTICR_OFFSET);
+
+  cr |= RP2040_UART_UARTCR_RXE | RP2040_UART_UARTCR_TXE | RP2040_UART_UARTCR_UARTEN;
+  putreg32(cr, CONSOLE_BASE + RP2040_UART_UARTCR_OFFSET);
+#endif
 }
 
 /****************************************************************************
@@ -233,7 +179,7 @@ void rp2040_setbaud(uintptr_t uartbase, uint32_t basefreq, uint32_t baud)
   uint32_t div;
   uint32_t lcr_h;
 
-  irqstate_t flags = enter_critical_section();
+  irqstate_t flags = spin_lock_irqsave(NULL);
 
   div  = basefreq / (16 * baud / 100);
   ibrd = div / 100;
@@ -246,17 +192,18 @@ void rp2040_setbaud(uintptr_t uartbase, uint32_t basefreq, uint32_t baud)
 
   if (ibrd == 0 || (ibrd == 65535 && fbrd != 0))
     {
-      goto finish;
+      spin_unlock_irqrestore(NULL, flags);
+      return;
     }
 
-  putreg32(ibrd, uartbase + RP2040_UART0_UARTIBRD_OFFSET);
-  putreg32(fbrd, uartbase + RP2040_UART0_UARTFBRD_OFFSET);
+  putreg32(ibrd, uartbase + RP2040_UART_UARTIBRD_OFFSET);
+  putreg32(fbrd, uartbase + RP2040_UART_UARTFBRD_OFFSET);
 
   /* Baud rate is updated by writing to LCR_H */
 
-  lcr_h = getreg32(uartbase + RP2040_UART0_UARTLCR_H_OFFSET);
-  putreg32(lcr_h, uartbase + RP2040_UART0_UARTLCR_H_OFFSET);
+  lcr_h = getreg32(uartbase + RP2040_UART_UARTLCR_H_OFFSET);
+  putreg32(lcr_h, uartbase + RP2040_UART_UARTLCR_H_OFFSET);
 
 finish:
-  leave_critical_section(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
