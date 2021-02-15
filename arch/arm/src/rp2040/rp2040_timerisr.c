@@ -41,25 +41,15 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-/* Get the frequency of the selected clock source */
 
-//#define SYSTICK_CLOCK 125000000
-#define SYSTICK_CLOCK 500000
+/* The SysTick is driven by watchdog tock clock. */
+
+#define SYSTICK_CLOCK BOARD_TICK_CLOCK
 
 /* The desired timer interrupt frequency is provided by the definition
  * CLK_TCK (see include/time.h).  CLK_TCK defines the desired number of
  * system clock ticks per second.  That value is a user configurable setting
  * that defaults to 100 (100 ticks per second = 10 MS interval).
- *
- * Then, for example, if the external high speed crystal is the SysTick
- * clock source and BOARD_XTALHI_FREQUENCY is 12MHz and CLK_TCK is 100, then
- * the reload value would be:
- *
- *   SYSTICK_RELOAD = (12,000,000 / 100) - 1
- *                  = 119,999
- *                  = 0x1d4bf
- *
- * Which fits within the maximum 24-bit reload value.
  */
 
 #define SYSTICK_RELOAD ((SYSTICK_CLOCK / CLK_TCK) - 1)
@@ -121,21 +111,15 @@ void up_timer_initialize(void)
   /* Configure SysTick to interrupt at the requested rate */
 
   putreg32(SYSTICK_RELOAD, ARMV6M_SYSTICK_RVR);
+  putreg32(0, ARMV6M_SYSTICK_CVR);
 
   /* Attach the timer interrupt vector */
 
   irq_attach(RP2040_IRQ_SYSTICK, (xcpt_t)rp2040_timerisr, NULL);
 
-  /* Enable SysTick interrupts.  We need to select the core clock here if
-   * we are not using one of the alternative clock sources above.
-   */
+  /* Enable SysTick interrupts. */
 
-#ifdef CONFIG_NUC_SYSTICK_CORECLK
-  putreg32((SYSTICK_CSR_CLKSOURCE | SYSTICK_CSR_TICKINT | SYSTICK_CSR_ENABLE),
-           ARMV6M_SYSTICK_CSR);
-#else
   putreg32((SYSTICK_CSR_TICKINT | SYSTICK_CSR_ENABLE), ARMV6M_SYSTICK_CSR);
-#endif
 
   /* And enable the timer interrupt */
 
