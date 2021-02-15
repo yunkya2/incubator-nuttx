@@ -22,7 +22,11 @@ include $(TOPDIR)/.config
 include $(TOPDIR)/tools/Config.mk
 include $(TOPDIR)/arch/arm/src/armv6-m/Toolchain.defs
 
-LDSCRIPT = raspberrypi-pico-sram.ld
+ifeq ($(CONFIG_RP2040_FLASH_BOOT),y)
+  LDSCRIPT = raspberrypi-pico-flash.ld
+else
+  LDSCRIPT = raspberrypi-pico-sram.ld
+endif
 
 ifeq ($(CONFIG_CYGWIN_WINTOOL),y)
   ARCHSCRIPT = -T "${shell cygpath -w $(BOARD_DIR)$(DELIM)scripts$(DELIM)$(LDSCRIPT)}"

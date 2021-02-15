@@ -61,8 +61,6 @@ SECTIONS
     } > sram
     __exidx_end = ABSOLUTE(.);
 
-    _eronly = ABSOLUTE(.);
-
     .data : {
         _sdata = ABSOLUTE(.);
         *(.data .data.*)

@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/rp2040/raspberrypi-pico/scripts/raspberrypi-pico.ld
+ * boards/arm/rp2040/raspberrypi-pico/scripts/raspberrypi-pico-flash.ld
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -30,6 +30,16 @@ ENTRY(_stext)
 
 SECTIONS
 {
+    .flash_begin : {
+        __flash_binary_start = .;
+    } > flash
+
+    .boot2 : {
+        __boot2_start__ = .;
+        KEEP (*(.boot2))
+        __boot2_end__ = .;
+    } > flash
+
     .text : {
         _stext = ABSOLUTE(.);
         *(.vectors)
