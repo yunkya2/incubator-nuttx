@@ -199,6 +199,7 @@ void up_irqinitialize(void)
   /* Disable all interrupts */
 
   putreg32(0xffffffff, ARMV6M_NVIC_ICER);
+  putreg32(0, ARMV6M_SYSTICK_CSR);
 
   /* Set all interrupts (and exceptions) to the default priority */
 
