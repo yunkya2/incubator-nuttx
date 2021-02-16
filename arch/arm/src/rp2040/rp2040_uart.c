@@ -192,8 +192,7 @@ void rp2040_setbaud(uintptr_t uartbase, uint32_t basefreq, uint32_t baud)
 
   if (ibrd == 0 || (ibrd == 65535 && fbrd != 0))
     {
-      spin_unlock_irqrestore(NULL, flags);
-      return;
+      goto finish;
     }
 
   putreg32(ibrd, uartbase + RP2040_UART_UARTIBRD_OFFSET);

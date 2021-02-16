@@ -74,21 +74,34 @@ struct up_dev_s
   uint8_t id;         /* ID=0,1,2,3 */
   uint8_t irq;        /* IRQ associated with this UART */
   uint8_t parity;     /* 0=none, 1=odd, 2=even */
-  uint8_t bits;       /* Number of bits (7 or 8) */
+  uint8_t bits;       /* Number of bits (5,6,7 or 8) */
   bool stopbits2;     /* true: Configure with 2 stop bits instead of 1 */
-  void *pmhandle;
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+  bool iflow;         /* input flow control (RTS) enabled */
+#endif
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
+  bool oflow;         /* output flow control (CTS) enabled */
+#endif
+  spinlock_t lock;
 };
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
+#ifndef CONFIG_SUPPRESS_UART_CONFIG
+static void up_set_format(struct uart_dev_s *dev);
+#endif
 static int up_setup(FAR struct uart_dev_s *dev);
 static void up_shutdown(FAR struct uart_dev_s *dev);
 static int up_attach(FAR struct uart_dev_s *dev);
 static void up_detach(FAR struct uart_dev_s *dev);
 static int up_interrupt(int irq, FAR void *context, FAR void *arg);
 static int up_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+static bool up_rxflowcontrol(FAR struct uart_dev_s *dev,
+                             unsigned int nbuffered, bool upper);
+#endif
 static int up_receive(FAR struct uart_dev_s *dev, FAR unsigned int *status);
 static void up_rxint(FAR struct uart_dev_s *dev, bool enable);
 static bool up_rxavailable(FAR struct uart_dev_s *dev);
@@ -112,7 +125,7 @@ static const struct uart_ops_s g_uart_ops =
   .rxint         = up_rxint,
   .rxavailable   = up_rxavailable,
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
-  .rxflowcontrol = NULL,
+  .rxflowcontrol = up_rxflowcontrol,
 #endif
   .send          = up_send,
   .txint         = up_txint,
@@ -139,11 +152,17 @@ static struct up_dev_s g_uart0priv =
   .uartbase  = RP2040_UART0_BASE,
   .basefreq  = BOARD_UART_BASEFREQ,
   .baud      = CONFIG_UART0_BAUD,
-  .id        = 1,
+  .id        = 0,
   .irq       = RP2040_UART0_IRQ,
   .parity    = CONFIG_UART0_PARITY,
   .bits      = CONFIG_UART0_BITS,
   .stopbits2 = CONFIG_UART0_2STOP,
+#if defined(CONFIG_SERIAL_IFLOWCONTROL) && defined(CONFIG_UART0_IFLOWCONTROL)
+  .iflow     = true,
+#endif
+#if defined(CONFIG_SERIAL_IFLOWCONTROL) && defined(CONFIG_UART0_OFLOWCONTROL)
+  .oflow     = true,
+#endif
 };
 
 static uart_dev_t g_uart0port =
@@ -177,6 +196,12 @@ static struct up_dev_s g_uart1priv =
   .parity    = CONFIG_UART1_PARITY,
   .bits      = CONFIG_UART1_BITS,
   .stopbits2 = CONFIG_UART1_2STOP,
+#if defined(CONFIG_SERIAL_IFLOWCONTROL) && defined(CONFIG_UART1_IFLOWCONTROL)
+  .iflow     = true,
+#endif
+#if defined(CONFIG_SERIAL_IFLOWCONTROL) && defined(CONFIG_UART1_OFLOWCONTROL)
+  .oflow     = true,
+#endif
 };
 
 static uart_dev_t g_uart1port =
@@ -239,7 +264,7 @@ static inline void up_disableuartint(FAR struct up_dev_s *priv,
 {
   irqstate_t flags;
 
-  flags = enter_critical_section();
+  flags = spin_lock_irqsave(&priv->lock);
   if (ier)
     {
       *ier = priv->ier & RP2040_UART_INTR_ALL;
@@ -247,7 +272,7 @@ static inline void up_disableuartint(FAR struct up_dev_s *priv,
 
   priv->ier &= ~RP2040_UART_INTR_ALL;
   up_serialout(priv, RP2040_UART_UARTIMSC_OFFSET, priv->ier);
-  leave_critical_section(flags);
+  spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 /****************************************************************************
@@ -258,10 +283,10 @@ static inline void up_restoreuartint(FAR struct up_dev_s *priv, uint32_t ier)
 {
   irqstate_t flags;
 
-  flags = enter_critical_section();
+  flags = spin_lock_irqsave(&priv->lock);
   priv->ier |= ier & RP2040_UART_INTR_ALL;
   up_serialout(priv, RP2040_UART_UARTIMSC_OFFSET, priv->ier);
-  leave_critical_section(flags);
+  spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 /****************************************************************************
@@ -282,6 +307,94 @@ static inline void up_enablebreaks(FAR struct up_dev_s *priv, bool enable)
 
   up_serialout(priv, RP2040_UART_UARTLCR_H_OFFSET, lcr);
 }
+
+/****************************************************************************
+ * Name: up_set_format
+ *
+ * Description:
+ *   Set the serial line format and speed.
+ *
+ ****************************************************************************/
+
+#ifndef CONFIG_SUPPRESS_UART_CONFIG
+static void up_set_format(struct uart_dev_s *dev)
+{
+  FAR struct up_dev_s *priv = (FAR struct up_dev_s *)dev->priv;
+  uint32_t lcr;
+  uint32_t cr;
+  uint32_t cr_en;
+  irqstate_t flags;
+
+  flags = spin_lock_irqsave(&priv->lock);
+
+  /* Get the original state of control register */
+
+  cr    = up_serialin(priv, RP2040_UART_UARTCR_OFFSET);
+  cr_en = cr & RP2040_UART_UARTCR_UARTEN;
+  cr   &= ~RP2040_UART_UARTCR_UARTEN;
+
+  /* Disable until the format bits and baud rate registers are updated */
+
+  up_serialout(priv, RP2040_UART_UARTCR_OFFSET, cr);
+
+  /* Set the BAUD divisor */
+
+  rp2040_setbaud(priv->uartbase, priv->basefreq, priv->baud);
+
+  /* Set up the LCR */
+
+  lcr = up_serialin(priv, RP2040_UART_UARTLCR_H_OFFSET);
+
+  lcr &= ~(RP2040_UART_LCR_H_WLEN(8) | RP2040_UART_UARTLCR_H_STP2 |
+           RP2040_UART_UARTLCR_H_EPS | RP2040_UART_UARTLCR_H_PEN);
+
+  if ((5 <= priv->bits) && (priv->bits < 8))
+    {
+      lcr |= RP2040_UART_LCR_H_WLEN(priv->bits);
+    }
+  else
+    {
+      lcr |= RP2040_UART_LCR_H_WLEN(8);
+    }
+
+  if (priv->stopbits2)
+    {
+      lcr |= RP2040_UART_UARTLCR_H_STP2;
+    }
+
+  if (priv->parity == 1)
+    {
+      lcr |= (RP2040_UART_UARTLCR_H_PEN);
+    }
+  else if (priv->parity == 2)
+    {
+      lcr |= (RP2040_UART_UARTLCR_H_PEN | RP2040_UART_UARTLCR_H_EPS);
+    }
+
+  up_serialout(priv, RP2040_UART_UARTLCR_H_OFFSET, lcr);
+
+  /* Enable Auto-RTS and Auto-CS Flow Control in the Modem Control Register */
+
+  cr &= ~(RP2040_UART_UARTCR_RTSEN | RP2040_UART_UARTCR_CTSEN);
+  cr |= RP2040_UART_UARTCR_RTS;
+
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+  if (priv->iflow)
+    {
+      cr |= RP2040_UART_UARTCR_RTSEN;
+    }
+#endif
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
+  if (priv->oflow)
+    {
+      cr |= RP2040_UART_UARTCR_CTSEN;
+    }
+#endif
+  up_serialout(priv, RP2040_UART_UARTCR_OFFSET, cr | cr_en);
+
+  spin_unlock_irqrestore(&priv->lock, flags);
+}
+#endif /* CONFIG_SUPPRESS_UART_CONFIG */
 
 /****************************************************************************
  * Name: up_setup
@@ -310,52 +423,27 @@ static int up_setup(FAR struct uart_dev_s *dev)
 
   priv->ier = up_serialin(priv, RP2040_UART_UARTIMSC_OFFSET);
 
-  /* Set the BAUD divisor */
+  /* Configure the UART line format and speed. */
 
-  rp2040_setbaud(priv->uartbase, priv->basefreq, priv->baud);
+  up_set_format(dev);
 
-  /* Set up the LCR */
-
-  lcr = 0;
-  if (priv->bits == 7)
-    {
-      lcr |= RP2040_UART_LCR_H_WLEN(7);
-    }
-  else
-    {
-      lcr |= RP2040_UART_LCR_H_WLEN(8);
-    }
-
-  if (priv->stopbits2)
-    {
-      lcr |= RP2040_UART_UARTLCR_H_STP2;
-    }
-
-  if (priv->parity == 1)
-    {
-      lcr |= (RP2040_UART_UARTLCR_H_PEN);
-    }
-  else if (priv->parity == 2)
-    {
-      lcr |= (RP2040_UART_UARTLCR_H_PEN | RP2040_UART_UARTLCR_H_EPS);
-    }
-
-  /* Save the LCR */
-
-  up_serialout(priv, RP2040_UART_UARTLCR_H_OFFSET, lcr);
+  /* Set interrupt FIFO level */
 
   up_serialout(priv, RP2040_UART_UARTIFLS_OFFSET, 0);
+
+  /* Clear all interrupts */
+
   up_serialout(priv, RP2040_UART_UARTICR_OFFSET, 0x7ff);
-
-  cr = RP2040_UART_UARTCR_RXE | RP2040_UART_UARTCR_TXE;
-
-  up_serialout(priv, RP2040_UART_UARTCR_OFFSET, cr);
 
   /* Enable FIFO and UART in the last */
 
+  lcr = up_serialin(priv, RP2040_UART_UARTLCR_H_OFFSET);
   lcr |= RP2040_UART_UARTLCR_H_FEN;
   up_serialout(priv, RP2040_UART_UARTLCR_H_OFFSET, lcr);
-  cr |= RP2040_UART_UARTCR_UARTEN;
+
+  cr = up_serialin(priv, RP2040_UART_UARTCR_OFFSET);
+  cr |= RP2040_UART_UARTCR_RXE | RP2040_UART_UARTCR_TXE |
+        RP2040_UART_UARTCR_UARTEN;
   up_serialout(priv, RP2040_UART_UARTCR_OFFSET, cr);
 #endif
 
@@ -383,15 +471,16 @@ static void up_shutdown(FAR struct uart_dev_s *dev)
  * Name: up_attach
  *
  * Description:
- *   Configure the UART to operation in interrupt driven mode.  This method is
- *   called when the serial port is opened.  Normally, this is just after the
- *   the setup() method is called, however, the serial console may operate in
- *   a non-interrupt driven mode during the boot phase.
+ *   Configure the UART to operation in interrupt driven mode.
+ *   This method is called when the serial port is opened.
+ *   Normally, this is just after the the setup() method is called,
+ *   however, the serial console may operate in  a non-interrupt driven mode
+ *   during the boot phase.
  *
  *   RX and TX interrupts are not enabled when by the attach method (unless
- *   the hardware supports multiple levels of interrupt enabling).  The RX and
- *   TX interrupts are not enabled until the txint() and rxint() methods are
- *   called.
+ *   the hardware supports multiple levels of interrupt enabling).
+ *   The RX and TX interrupts are not enabled until the txint() and rxint()
+ *   methods are called.
  *
  ****************************************************************************/
 
@@ -420,8 +509,8 @@ static int up_attach(FAR struct uart_dev_s *dev)
  *
  * Description:
  *   Detach UART interrupts.  This method is called when the serial port is
- *   closed normally just before the shutdown method is called.  The exception
- *   is the serial console which is never shutdown.
+ *   closed normally just before the shutdown method is called.
+ *   The exception is the serial console which is never shutdown.
  *
  ****************************************************************************/
 
@@ -431,6 +520,38 @@ static void up_detach(FAR struct uart_dev_s *dev)
   up_disable_irq(priv->irq);
   irq_detach(priv->irq);
 }
+
+/****************************************************************************
+ * Name: up_rxflowcontrol
+ *
+ * Description:
+ *   Called when Rx buffer is full (or exceeds configured watermark levels
+ *   if CONFIG_SERIAL_IFLOWCONTROL_WATERMARKS is defined).
+ *   Return true if UART activated RX flow control to block more incoming
+ *   data
+ *
+ * Input parameters:
+ *   dev       - UART device instance
+ *   nbuffered - the number of characters currently buffered
+ *               (if CONFIG_SERIAL_IFLOWCONTROL_WATERMARKS is
+ *               not defined the value will be 0 for an empty buffer or the
+ *               defined buffer size for a full buffer)
+ *   upper     - true indicates the upper watermark was crossed where
+ *               false indicates the lower watermark has been crossed
+ *
+ * Returned Value:
+ *   true if RX flow control activated.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+static bool up_rxflowcontrol(FAR struct uart_dev_s *dev,
+                             unsigned int nbuffered, bool upper)
+{
+  up_rxint(dev, !upper);
+  return true;
+}
+#endif /* CONFIG_SERIAL_IFLOWCONTROL */
 
 /****************************************************************************
  * Name: up_interrupt
@@ -553,6 +674,7 @@ static int up_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       case TCGETS:
         {
           FAR struct termios *termiosp = (FAR struct termios *)arg;
+          irqstate_t flags;
 
           if (!termiosp)
             {
@@ -564,6 +686,12 @@ static int up_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
           termiosp->c_cflag = ((priv->parity != 0) ? PARENB : 0) |
                               ((priv->parity == 1) ? PARODD : 0) |
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
+                              ((priv->oflow) ? CCTS_OFLOW : 0) |
+#endif
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+                              ((priv->iflow) ? CRTS_IFLOW : 0) |
+#endif
                               ((priv->stopbits2) ? CSTOPB : 0);
 
           cfsetispeed(termiosp, priv->baud);
@@ -595,6 +723,7 @@ static int up_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       case TCSETS:
         {
           FAR struct termios *termiosp = (FAR struct termios *)arg;
+          irqstate_t flags;
 
           if (!termiosp)
             {
@@ -635,11 +764,18 @@ static int up_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
           priv->stopbits2 = (termiosp->c_cflag & CSTOPB) != 0;
 
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
+          priv->oflow = (termiosp->c_cflag & CCTS_OFLOW) != 0;
+#endif
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+          priv->iflow = (termiosp->c_cflag & CRTS_IFLOW) != 0;
+#endif
           priv->baud = cfgetispeed(termiosp);
 
           /* Configure the UART line format and speed. */
 
           up_set_format(dev);
+
           spin_unlock_irqrestore(&priv->lock, flags);
         }
         break;
@@ -647,18 +783,18 @@ static int up_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case TIOCSBRK: /* BSD compatibility: Turn break on, unconditionally */
         {
-          irqstate_t flags = enter_critical_section();
+          irqstate_t flags = spin_lock_irqsave(&priv->lock);
           up_enablebreaks(priv, true);
-          leave_critical_section(flags);
+          spin_unlock_irqrestore(&priv->lock, flags);
         }
         break;
 
       case TIOCCBRK: /* BSD compatibility: Turn break off, unconditionally */
         {
           irqstate_t flags;
-          flags = enter_critical_section();
+          flags = spin_lock_irqsave(&priv->lock);
           up_enablebreaks(priv, false);
-          leave_critical_section(flags);
+          spin_unlock_irqrestore(&priv->lock, flags);
         }
         break;
 
@@ -709,7 +845,7 @@ static void up_rxint(FAR struct uart_dev_s *dev, bool enable)
   FAR struct up_dev_s *priv = (FAR struct up_dev_s *)dev->priv;
   irqstate_t flags;
 
-  flags = enter_critical_section();
+  flags = spin_lock_irqsave(&priv->lock);
   if (enable)
     {
 #ifndef CONFIG_SUPPRESS_SERIAL_INTS
@@ -722,7 +858,7 @@ static void up_rxint(FAR struct uart_dev_s *dev, bool enable)
     }
 
   up_serialout(priv, RP2040_UART_UARTIMSC_OFFSET, priv->ier);
-  leave_critical_section(flags);
+  spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 /****************************************************************************
@@ -820,7 +956,7 @@ static bool up_txempty(FAR struct uart_dev_s *dev)
 }
 
 /****************************************************************************
- * Public Funtions
+ * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
@@ -829,7 +965,7 @@ static bool up_txempty(FAR struct uart_dev_s *dev)
  * Description:
  *   Performs the low level UART initialization early in debug so that the
  *   serial console will be available during bootup.  This must be called
- *   before up_serialinit.
+ *   before arm_serialinit.
  *
  *   NOTE: Configuration of the CONSOLE UART was performed by up_lowsetup()
  *   very early in the boot sequence.
@@ -853,20 +989,20 @@ void arm_earlyserialinit(void)
  *
  * Description:
  *   Register serial console and serial ports.  This assumes that
- *   up_earlyserialinit was called previously.
+ *   arm_earlyserialinit was called previously.
  *
  ****************************************************************************/
 
 void arm_serialinit(void)
 {
 #ifdef CONSOLE_DEV
-  (void)uart_register("/dev/console", &CONSOLE_DEV);
+  uart_register("/dev/console", &CONSOLE_DEV);
 #endif
 #ifdef TTYS0_DEV
-  (void)uart_register("/dev/ttyS0", &TTYS0_DEV);
+  uart_register("/dev/ttyS0", &TTYS0_DEV);
 #endif
 #ifdef TTYS1_DEV
-  (void)uart_register("/dev/ttyS1", &TTYS1_DEV);
+  uart_register("/dev/ttyS1", &TTYS1_DEV);
 #endif
 }
 
