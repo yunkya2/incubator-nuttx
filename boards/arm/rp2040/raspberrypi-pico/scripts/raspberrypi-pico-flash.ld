@@ -74,7 +74,7 @@ SECTIONS
 
     _eronly = ABSOLUTE(.);
 
-    .ram_vectors : {
+    .ram_vectors (COPY) : {
         *(.ram_vectors)
     } > sram
 
