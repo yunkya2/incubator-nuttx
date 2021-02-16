@@ -9,4 +9,10 @@ config RP2040_FLASH_BOOT
 	bool "flash boot"
 	default n
 
+config RP2040_UF2_BINARY
+	bool "uf2 binary format"
+	default y
+	---help---
+		Create nuttx.uf2 binary format used on RP2040 based arch.
+
 endif
