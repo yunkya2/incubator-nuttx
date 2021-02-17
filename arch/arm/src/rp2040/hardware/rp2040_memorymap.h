@@ -27,6 +27,8 @@
 
 #include <nuttx/config.h>
 
+#include "arm_arch.h"
+
 #include "chip.h"
 
 /********************************************************************************************
@@ -72,6 +74,10 @@
 #define RP2040_SIO_BASE                  0xd0000000  /* Single-cycle IO block Provides core-local and inter-core hardware for the two processors, with single-cycle access. */
 #define RP2040_PPB_BASE                  0xe0000000
 
+#define RP2040_ATOMIC_XOR_REG_OFFSET         0x1000
+#define RP2040_ATOMIC_SET_REG_OFFSET         0x2000
+#define RP2040_ATOMIC_CLR_REG_OFFSET         0x3000
+
  /********************************************************************************************
  * Public Types
  ********************************************************************************************/
@@ -80,8 +86,33 @@
  * Public Data
  ********************************************************************************************/
 
-/********************************************************************************************
- * Public Functions
- ********************************************************************************************/
+/************************************************************************************
+ * Inline Functions
+ ************************************************************************************/
 
+#ifndef __ASSEMBLY__
+
+# define xorbits_reg32(v,a)  putreg32(v, (a) | RP2040_ATOMIC_XOR_REG_OFFSET)
+# define setbits_reg32(v,a)  putreg32(v, (a) | RP2040_ATOMIC_SET_REG_OFFSET)
+# define clrbits_reg32(v,a)  putreg32(v, (a) | RP2040_ATOMIC_CLR_REG_OFFSET)
+
+/************************************************************************************
+ * Public Function Prototypes
+ ************************************************************************************/
+#undef EXTERN
+#if defined(__cplusplus)
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
+
+
+#undef EXTERN
+#if defined(__cplusplus)
+}
+#endif
+
+#endif /* __ASSEMBLY__ */
 #endif /* __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_MEMORYMAP_H */
