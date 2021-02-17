@@ -21,9 +21,6 @@
 #ifndef __ARCH_ARM_INCLUDE_RP2040_CHIP_H
 #define __ARCH_ARM_INCLUDE_RP2040_CHIP_H
 
-
-
-
 /* NVIC priority levels *************************************************************/
 /* Each priority field holds a priority value, 0-3. The lower the value, the greater
  * the priority of the corresponding interrupt. The processor implements only
@@ -34,7 +31,5 @@
 #define NVIC_SYSH_PRIORITY_DEFAULT 0x80 /* Midpoint is the default */
 #define NVIC_SYSH_PRIORITY_MAX     0x00 /* Zero is maximum priority */
 #define NVIC_SYSH_PRIORITY_STEP    0x40 /* Five bits of interrupt priority used */
-
-
 
 #endif /* __ARCH_ARM_INCLUDE_RP2040_CHIP_H */
