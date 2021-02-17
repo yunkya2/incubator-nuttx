@@ -56,6 +56,7 @@ CHIP_CSRCS += rp2040_start.c
 CHIP_CSRCS += rp2040_timerisr.c
 CHIP_CSRCS += rp2040_clock.c
 CHIP_CSRCS += rp2040_xosc.c
+CHIP_CSRCS += rp2040_pll.c
 
 ifneq ($(PICO_SDK_PATH),)
 include chip/boot2/Make.defs
