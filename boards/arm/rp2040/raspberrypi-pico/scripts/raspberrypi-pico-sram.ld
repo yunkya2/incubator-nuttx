@@ -31,6 +31,8 @@ SECTIONS
 {
     .text : {
         _stext = ABSOLUTE(.);
+        rp2040_start.o(.text)
+        . = ALIGN(256);
         *(.vectors)
         *(.text .text.*)
         *(.fixup)
