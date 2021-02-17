@@ -83,7 +83,9 @@ const uintptr_t g_idle_topstack = IDLE_STACK;
 
 void __start(void)
 {
+#ifdef CONFIG_RP2040_FLASH_BOOT
   const uint32_t *src;
+#endif
   uint32_t *dest;
 
   /* Configure the uart so that we can get debug output as soon as possible */
