@@ -37,6 +37,8 @@
 #include "chip.h"
 
 #include "rp2040_clock.h"
+#include "rp2040_xosc.h"
+#include "rp2040_pll.h"
 
 /****************************************************************************
  * Private Functions
@@ -63,9 +65,6 @@
 
 
 #include "hardware/rp2040_clocks.h"
-#include "hardware/rp2040_xosc.h"
-#include "hardware/rp2040_pll_sys.h"
-#include "hardware/rp2040_pll_usb.h"
 #include "hardware/rp2040_resets.h"
 #include "hardware/rp2040_watchdog.h"
 #define REG_ALIAS_XOR_BITS (0x1u << 12u)
@@ -73,8 +72,6 @@
 #define REG_ALIAS_CLR_BITS (0x3u << 12u)
 #define RESETS_RESET_BITS   0x01ffffff
 
-#define XOSC_MHZ    12
-#define MHZ (1000000)
 
 void hw_write_masked(uint32_t addr, uint32_t values, uint32_t write_mask) {
     uint32_t a = (*(volatile uint32_t *)addr ^ values) & write_mask;
@@ -87,83 +84,31 @@ void hw_clear_bits(uint32_t addr, uint32_t values) {
     putreg32(values, addr | REG_ALIAS_CLR_BITS);
 }
 
-void xosc_init(void) {
-    // Assumes 1-15 MHz input
-    assert(XOSC_MHZ <= 15);
-    putreg32(RP2040_XOSC_CTRL_FREQ_RANGE_1_15MHZ, RP2040_XOSC_CTRL);
-
-    // Set xosc startup delay
-    uint32_t startup_delay = (((12 * MHZ) / 1000) + 128) / 256;
-    putreg32(startup_delay, RP2040_XOSC_STARTUP);
-
-    // Set the enable bit now that we have set freq range and startup delay
-    hw_set_bits(RP2040_XOSC_CTRL, RP2040_XOSC_CTRL_ENABLE_ENABLE);
-
-    // Wait for XOSC to be stable
-    while (!(getreg32(RP2040_XOSC_STATUS) & RP2040_XOSC_STATUS_STABLE))
-        ;
-}
-
-void pll_init(uint32_t pll, uint32_t refdiv, uint32_t vco_freq, uint32_t post_div1, uint8_t post_div2) {
-    // Turn off PLL in case it is already running
-    putreg32(0xffffffff, pll + RP2040_PLL_SYS_PWR_OFFSET);
-    putreg32(0, pll + RP2040_PLL_SYS_FBDIV_INT_OFFSET);
-
-    uint32_t ref_mhz = XOSC_MHZ / refdiv;
-    putreg32(refdiv, pll + RP2040_PLL_SYS_CS_OFFSET);
-
-    // What are we multiplying the reference clock by to get the vco freq
-    // (The regs are called div, because you divide the vco output and compare it to the refclk)
-    volatile uint32_t fbdiv = vco_freq / (ref_mhz * MHZ);
-/// \end::pll_init_calculations[]
-
-    // fbdiv
-    assert(fbdiv >= 16 && fbdiv <= 320);
-
-    // Check divider ranges
-    assert((post_div1 >= 1 && post_div1 <= 7) && (post_div2 >= 1 && post_div2 <= 7));
-
-    // post_div1 should be >= post_div2
-    // from appnote page 11
-    // postdiv1 is designed to operate with a higher input frequency
-    // than postdiv2
-    assert(post_div2 <= post_div1);
-
-/// \tag::pll_init_finish[]
-    // Check that reference frequency is no greater than vco / 16
-    assert(ref_mhz <= (vco_freq / 16));
-
-    // Put calculated value into feedback divider
-    putreg32(fbdiv, pll + RP2040_PLL_SYS_FBDIV_INT_OFFSET);
-
-    // Turn on PLL
-    uint32_t power = RP2040_PLL_SYS_PWR_PD | // Main power
-                     RP2040_PLL_SYS_PWR_VCOPD; // VCO Power
-
-    hw_clear_bits(pll + RP2040_PLL_SYS_PWR_OFFSET, power);
-
-    // Wait for PLL to lock
-    while (!(getreg32(pll + RP2040_PLL_SYS_CS_OFFSET) & RP2040_PLL_SYS_CS_LOCK))
-        ;
-
-    // Set up post dividers - div1 feeds into div2 so if div1 is 5 and div2 is 2 then you get a divide by 10
-    uint32_t pdiv = (post_div1 << RP2040_PLL_SYS_PRIM_POSTDIV1_SHIFT) |
-                    (post_div2 << RP2040_PLL_SYS_PRIM_POSTDIV2_SHIFT);
-    putreg32(pdiv, pll + RP2040_PLL_SYS_PRIM_OFFSET);
-
-    // Turn on post divider
-    hw_clear_bits(pll + RP2040_PLL_SYS_PWR_OFFSET, RP2040_PLL_SYS_PWR_POSTDIVPD);
-/// \end::pll_init_finish[]
-}
 
 static inline bool has_glitchless_mux(uint32_t clk_index) {
     return clk_index == RP2040_CLOCKS_CLK_SYS_CTRL ||
            clk_index == RP2040_CLOCKS_CLK_REF_CTRL;
 }
 
+#define RP2040_CLOCK_GPOUT0     0   /* Clock output to GPIO */
+#define RP2040_CLOCK_GPOUT1     1
+#define RP2040_CLOCK_GPOUT2     2
+#define RP2040_CLOCK_GPOUT3     3
+#define RP2040_CLOCK_REF        4   /* Reference clock */
+#define RP2040_CLOCK_SYS        5   /* System clock */
+#define RP2040_CLOCK_PERI       6   /* Peripheral clock */
+#define RP2040_CLOCK_USB        7   /* USB clock */
+#define RP2040_CLOCK_ADC        8   /* ADC clock */
+#define RP2040_CLOCK_RTC        9   /* RTC clock */
+#define RP2040_NCLOCKS          10
+
+
 
 /// \tag::clock_configure[]
-bool clock_configure(uint32_t clk_index, uint32_t src, uint32_t auxsrc, uint32_t src_freq, uint32_t freq) {
+bool rp2040_clock_configure(uint32_t clk_index,
+                            uint32_t src, uint32_t auxsrc,
+                            uint32_t src_freq, uint32_t freq)
+{
     uint32_t div;
 
     assert(src_freq >= freq);
@@ -242,13 +187,13 @@ bool clock_configure(uint32_t clk_index, uint32_t src, uint32_t auxsrc, uint32_t
 
 void clocks_init(void) {
     // Start tick in watchdog
-    putreg32(XOSC_MHZ | RP2040_WATCHDOG_TICK_ENABLE, RP2040_WATCHDOG_TICK);
+    putreg32(BOARD_XOSC_FREQ | RP2040_WATCHDOG_TICK_ENABLE, RP2040_WATCHDOG_TICK);
 
     // Disable resus that may be enabled from previous software
     putreg32(0, RP2040_CLOCKS_CLK_SYS_RESUS_CTRL);
 
     // Enable the xosc
-    xosc_init();
+    rp2040_xosc_init();
 
     // Before we touch PLLs, switch sys and ref cleanly away from their aux sources.
     hw_clear_bits(RP2040_CLOCKS_CLK_SYS_CTRL, RP2040_CLOCKS_CLK_SYS_CTRL_SRC);
@@ -274,13 +219,13 @@ void clocks_init(void) {
         ;
 
     /// \tag::pll_init[]
-    pll_init(RP2040_PLL_SYS_BASE, 1, 1500 * MHZ, 6, 2);
-    pll_init(RP2040_PLL_USB_BASE, 1, 480 * MHZ, 5, 2);
+    rp2040_pll_init(RP2040_PLL_SYS_BASE, 1, 1500 * MHZ, 6, 2);
+    rp2040_pll_init(RP2040_PLL_USB_BASE, 1, 480 * MHZ, 5, 2);
     /// \end::pll_init[]
 
     // Configure clocks
     // CLK_REF = XOSC (12MHz) / 1 = 12MHz
-    clock_configure(RP2040_CLOCKS_CLK_REF_CTRL,
+    rp2040_clock_configure(RP2040_CLOCKS_CLK_REF_CTRL,
                     RP2040_CLOCKS_CLK_REF_CTRL_SRC_XOSC_CLKSRC,
                     0, // No aux mux
                     12 * MHZ,
@@ -288,7 +233,7 @@ void clocks_init(void) {
 
     /// \tag::configure_clk_sys[]
     // CLK SYS = PLL SYS (125MHz) / 1 = 125MHz
-    clock_configure(RP2040_CLOCKS_CLK_SYS_CTRL,
+    rp2040_clock_configure(RP2040_CLOCKS_CLK_SYS_CTRL,
                     RP2040_CLOCKS_CLK_SYS_CTRL_SRC,
                     RP2040_CLOCKS_CLK_SYS_CTRL_AUXSRC_CLKSRC_PLL_SYS,
                     125 * MHZ,
@@ -296,21 +241,21 @@ void clocks_init(void) {
     /// \end::configure_clk_sys[]
 
     // CLK USB = PLL USB (48MHz) / 1 = 48MHz
-    clock_configure(RP2040_CLOCKS_CLK_USB_CTRL,
+    rp2040_clock_configure(RP2040_CLOCKS_CLK_USB_CTRL,
                     0, // No GLMUX
                     RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_CLKSRC_PLL_USB,
                     48 * MHZ,
                     48 * MHZ);
 
     // CLK ADC = PLL USB (48MHZ) / 1 = 48MHz
-    clock_configure(RP2040_CLOCKS_CLK_ADC_CTRL,
+    rp2040_clock_configure(RP2040_CLOCKS_CLK_ADC_CTRL,
                     0, // No GLMUX
                     RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_CLKSRC_PLL_USB,
                     48 * MHZ,
                     48 * MHZ);
 
     // CLK RTC = PLL USB (48MHz) / 1024 = 46875Hz
-    clock_configure(RP2040_CLOCKS_CLK_RTC_CTRL,
+    rp2040_clock_configure(RP2040_CLOCKS_CLK_RTC_CTRL,
                     0, // No GLMUX
                     RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_CLKSRC_PLL_USB,
                     48 * MHZ,
@@ -318,7 +263,7 @@ void clocks_init(void) {
 
     // CLK PERI = clk_sys. Used as reference clock for Peripherals. No dividers so just select and enable
     // Normally choose clk_sys or clk_usb
-    clock_configure(RP2040_CLOCKS_CLK_PERI_CTRL,
+    rp2040_clock_configure(RP2040_CLOCKS_CLK_PERI_CTRL,
                     0,
                     RP2040_CLOCKS_CLK_PERI_CTRL_AUXSRC_CLK_SYS,
                     125 * MHZ,

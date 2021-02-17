@@ -33,6 +33,12 @@
 
 /* Register offsets *********************************************************/
 
+#define RP2040_CLOCKS_CLK_CTRL_OFFSET              0x000000  /* Clock control, can be changed on-the-fly (except for auxsrc) */
+#define RP2040_CLOCKS_CLK_DIV_OFFSET               0x000004  /* Clock divisor, can be changed on-the-fly */
+#define RP2040_CLOCKS_CLK_SELECTED_OFFSET          0x000008  /* Indicates which src is currently selected (one-hot) */
+
+
+
 #define RP2040_CLOCKS_CLK_GPOUT0_CTRL_OFFSET       0x000000  /* Clock control, can be changed on-the-fly (except for auxsrc) */
 #define RP2040_CLOCKS_CLK_GPOUT0_DIV_OFFSET        0x000004  /* Clock divisor, can be changed on-the-fly */
 #define RP2040_CLOCKS_CLK_GPOUT0_SELECTED_OFFSET   0x000008  /* Indicates which src is currently selected (one-hot) */
