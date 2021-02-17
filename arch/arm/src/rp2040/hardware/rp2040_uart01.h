@@ -25,9 +25,7 @@
  * Included Files
  ********************************************************************************************/
 
-#include <nuttx/config.h>
-
-#include "chip.h"
+#include "hardware/rp2040_memorymap.h"
 
 /********************************************************************************************
  * Pre-processor Definitions
@@ -243,4 +241,3 @@
 
 
 #endif /* __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_UART01_H */
-
