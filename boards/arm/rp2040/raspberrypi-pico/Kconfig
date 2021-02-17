@@ -9,6 +9,10 @@ config RP2040_FLASH_BOOT
 	bool "flash boot"
 	default n
 
+config RP2040_FLASH_CHIP
+	string "flash chip name"
+	default "w25q080"
+
 config RP2040_UF2_BINARY
 	bool "uf2 binary format"
 	default y

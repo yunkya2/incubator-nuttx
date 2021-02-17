@@ -56,4 +56,10 @@ CHIP_CSRCS += rp2040_start.c
 CHIP_CSRCS += rp2040_clock.c
 CHIP_CSRCS += rp2040_timerisr.c
 
-HEAD_ASRC += bs2_default_padded_checksummed.S
+ifneq ($(PICO_SDK_PATH),)
+include chip/boot2/Make.defs
+else
+ifeq ($(CONFIG_RP2040_FLASH_BOOT),y)
+$(error $$(PICO_SDK_PATH) must be specified for flash boot)
+endif
+endif
