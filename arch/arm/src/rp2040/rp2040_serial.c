@@ -872,7 +872,8 @@ static void up_rxint(FAR struct uart_dev_s *dev, bool enable)
 static bool up_rxavailable(FAR struct uart_dev_s *dev)
 {
   FAR struct up_dev_s *priv = (FAR struct up_dev_s *)dev->priv;
-  return ((up_serialin(priv, RP2040_UART_UARTFR_OFFSET) & RP2040_UART_UARTFR_RXFE) == 0);
+  return ((up_serialin(priv, RP2040_UART_UARTFR_OFFSET)
+           & RP2040_UART_UARTFR_RXFE) == 0);
 }
 
 /****************************************************************************
@@ -936,7 +937,8 @@ static void up_txint(FAR struct uart_dev_s *dev, bool enable)
 static bool up_txready(FAR struct uart_dev_s *dev)
 {
   FAR struct up_dev_s *priv = (FAR struct up_dev_s *)dev->priv;
-  return ((up_serialin(priv, RP2040_UART_UARTFR_OFFSET) & RP2040_UART_UARTFR_TXFF) == 0);
+  return ((up_serialin(priv, RP2040_UART_UARTFR_OFFSET)
+           & RP2040_UART_UARTFR_TXFF) == 0);
 }
 
 /****************************************************************************
@@ -952,7 +954,8 @@ static bool up_txempty(FAR struct uart_dev_s *dev)
   FAR struct up_dev_s *priv = (FAR struct up_dev_s *)dev->priv;
   uint32_t rbr = 0;
   rbr = up_serialin(priv, RP2040_UART_UARTFR_OFFSET);
-  return (((rbr & RP2040_UART_UARTFR_TXFE) != 0) && ((rbr & RP2040_UART_UARTFR_BUSY) == 0));
+  return (((rbr & RP2040_UART_UARTFR_TXFE) != 0) &&
+          ((rbr & RP2040_UART_UARTFR_BUSY) == 0));
 }
 
 /****************************************************************************
