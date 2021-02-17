@@ -74,10 +74,9 @@
  *   of the systems.
  *
  ****************************************************************************/
-#include "hardware/rp2040_sio.h"
+
 static int rp2040_timerisr(int irq, uint32_t *regs, void *arg)
 {
-  putreg32(1 << 25, RP2040_SIO_GPIO_OUT_XOR);
   /* Process timer interrupt */
 
   nxsched_process_timer();
