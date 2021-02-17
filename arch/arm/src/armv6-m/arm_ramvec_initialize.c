@@ -43,11 +43,20 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define NVIC_VECTAB_TBLOFF_MASK     (0xffffff00)
+/* Vector Table Offset Register (VECTAB).  This mask seems to vary among
+ * ARMv6-M implementations.  It may need to be redefined in some
+ * architecture-specific header file. By default, the base address of the
+ * new vector table must be aligned to the size of the vector table extended
+ * to the next larger power of 2.
+ */
+
+#ifndef NVIC_VECTAB_TBLOFF_MASK
+#  define NVIC_VECTAB_TBLOFF_MASK     (0xffffff00)
+#endif
 
 /* Alignment ****************************************************************/
 
-#define RAMVEC_ALIGN 256
+#define RAMVEC_ALIGN ((~NVIC_VECTAB_TBLOFF_MASK & 0xffff) + 1)
 
 /****************************************************************************
  * Public Data
