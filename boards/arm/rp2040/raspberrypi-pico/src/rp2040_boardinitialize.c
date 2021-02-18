@@ -26,9 +26,15 @@
 
 #include <debug.h>
 
+#include <nuttx/board.h>
 #include <arch/board/board.h>
 
 #include "arm_arch.h"
+#include "arm_internal.h"
+
+#include "rp2040_gpio.h"
+#include "hardware/rp2040_io_bank0.h"
+#include "hardware/rp2040_sio.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -40,6 +46,38 @@
 
 /****************************************************************************
  * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: rp2040_boardearlyinitialize
+ *
+ * Description:
+ *
+ ****************************************************************************/
+
+void rp2040_boardearlyinitialize(void)
+{
+  /* Set default UART TX,RX pin */
+
+  rp2040_gpio_set_function(BOARD_GPIO_UART_PIN,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_UART);
+  rp2040_gpio_set_function(BOARD_GPIO_UART_PIN + 1,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_UART);
+
+  /* Set board LED pin */
+
+  rp2040_gpio_set_function(BOARD_GPIO_LED_PIN,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SIO);
+  putreg32(1 << BOARD_GPIO_LED_PIN, RP2040_SIO_GPIO_OE_SET);
+
+  putreg32(1 << BOARD_GPIO_LED_PIN, RP2040_SIO_GPIO_OUT_SET);
+}
+
+/****************************************************************************
+ * Name: rp2040_boardinitialize
+ *
+ * Description:
+ *
  ****************************************************************************/
 
 void rp2040_boardinitialize(void)
