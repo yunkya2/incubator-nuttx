@@ -33,6 +33,7 @@
 #include "arm_internal.h"
 
 #include "rp2040_gpio.h"
+#include "hardware/rp2040_pads_bank0.h"
 #include "hardware/rp2040_io_bank0.h"
 #include "hardware/rp2040_sio.h"
 
@@ -57,6 +58,13 @@
 
 void rp2040_boardearlyinitialize(void)
 {
+  /* Disable IE on GPIO 26-29 */
+
+  clrbits_reg32(RP2040_PADS_BANK0_GPIO_IE, RP2040_PADS_BANK0_GPIO(26));
+  clrbits_reg32(RP2040_PADS_BANK0_GPIO_IE, RP2040_PADS_BANK0_GPIO(27));
+  clrbits_reg32(RP2040_PADS_BANK0_GPIO_IE, RP2040_PADS_BANK0_GPIO(28));
+  clrbits_reg32(RP2040_PADS_BANK0_GPIO_IE, RP2040_PADS_BANK0_GPIO(29));
+
   /* Set default UART TX,RX pin */
 
   rp2040_gpio_set_function(BOARD_GPIO_UART_PIN,
