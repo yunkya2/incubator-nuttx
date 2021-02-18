@@ -96,6 +96,12 @@
 # define setbits_reg32(v,a)  putreg32(v, (a) | RP2040_ATOMIC_SET_REG_OFFSET)
 # define clrbits_reg32(v,a)  putreg32(v, (a) | RP2040_ATOMIC_CLR_REG_OFFSET)
 
+inline void modbits_reg32(uint32_t values, uint32_t mask, uint32_t addr)
+{
+  uint32_t a = (getreg32(addr) ^ values) & mask;
+  xorbits_reg32(a, addr);
+}
+
 /************************************************************************************
  * Public Function Prototypes
  ************************************************************************************/
