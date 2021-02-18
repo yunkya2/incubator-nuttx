@@ -54,9 +54,9 @@
 
 /* Register bit definitions *************************************************/
 
-#define RP2040_PLL_CS_LOCK              (1 << 31)  /* PLL is locked */
+#define RP2040_PLL_CS_LOCK              (1 << 31) /* PLL is locked */
 #define RP2040_PLL_CS_BYPASS            (1 << 8)  /* Passes the reference clock to the output instead of the divided VCO. The VCO continues to run so the user can switch between the reference clock and the divided VCO but the output will glitch when doing so. */
-#define RP2040_PLL_CS_REFDIV_MASK       (0x3f)  /* Divides the PLL input reference clock. Behaviour is undefined for div=0. PLL output will be unpredictable during refdiv changes, wait for lock=1 before using it. */
+#define RP2040_PLL_CS_REFDIV_MASK       (0x3f)    /* Divides the PLL input reference clock. Behaviour is undefined for div=0. PLL output will be unpredictable during refdiv changes, wait for lock=1 before using it. */
 
 #define RP2040_PLL_PWR_VCOPD            (1 << 5)  /* PLL VCO powerdown To save power set high when PLL output not required or bypass=1. */
 #define RP2040_PLL_PWR_POSTDIVPD        (1 << 3)  /* PLL post divider powerdown To save power set high when PLL output not required or bypass=1. */

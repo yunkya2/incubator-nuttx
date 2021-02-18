@@ -229,7 +229,7 @@
 
 #define RP2040_SIO_GPIO_IN_MASK                        (0x3fffffff)  /* Input value for GPIO0...29 */
 
-#define RP2040_SIO_GPIO_HI_IN_MASK                     (0x3f)  /* Input value on QSPI IO in order 0..5: SCLK, SSn, SD0, SD1, SD2, SD3 */
+#define RP2040_SIO_GPIO_HI_IN_MASK                     (0x3f)        /* Input value on QSPI IO in order 0..5: SCLK, SSn, SD0, SD1, SD2, SD3 */
 
 #define RP2040_SIO_GPIO_OUT_MASK                       (0x3fffffff)  /* Set output level (1/0 -> high/low) for GPIO0...29. Reading back gives the last value written, NOT the input value from the pins. If core 0 and core 1 both write to GPIO_OUT simultaneously (or to a SET/CLR/XOR alias), the result is as though the write from core 0 took place first, and the write from core 1 was then applied to that intermediate result. */
 
@@ -275,29 +275,29 @@
 #define RP2040_SIO_INTERP0_CTRL_LANE0_OVERF1           (1 << 24)  /* Indicates if any masked-off MSBs in ACCUM1 are set. */
 #define RP2040_SIO_INTERP0_CTRL_LANE0_OVERF0           (1 << 23)  /* Indicates if any masked-off MSBs in ACCUM0 are set. */
 #define RP2040_SIO_INTERP0_CTRL_LANE0_BLEND            (1 << 21)  /* Only present on INTERP0 on each core. If BLEND mode is enabled: - LANE1 result is a linear interpolation between BASE0 and BASE1, controlled by the 8 LSBs of lane 1 shift and mask value (a fractional number between 0 and 255/256ths) - LANE0 result does not have BASE0 added (yields only the 8 LSBs of lane 1 shift+mask value) - FULL result does not have lane 1 shift+mask value added (BASE2 + lane 0 shift+mask) LANE1 SIGNED flag controls whether the interpolation is signed or unsigned. */
-#define RP2040_SIO_INTERP0_CTRL_LANE0_FORCE_MSB_SHIFT  (19)  /* ORed into bits 29:28 of the lane result presented to the processor on the bus. No effect on the internal 32-bit datapath. Handy for using a lane to generate sequence of pointers into flash or SRAM. */
+#define RP2040_SIO_INTERP0_CTRL_LANE0_FORCE_MSB_SHIFT  (19)       /* ORed into bits 29:28 of the lane result presented to the processor on the bus. No effect on the internal 32-bit datapath. Handy for using a lane to generate sequence of pointers into flash or SRAM. */
 #define RP2040_SIO_INTERP0_CTRL_LANE0_FORCE_MSB_MASK   (0x03 << RP2040_SIO_INTERP0_CTRL_LANE0_FORCE_MSB_SHIFT)
 #define RP2040_SIO_INTERP0_CTRL_LANE0_ADD_RAW          (1 << 18)  /* If 1, mask + shift is bypassed for LANE0 result. This does not affect FULL result. */
 #define RP2040_SIO_INTERP0_CTRL_LANE0_CROSS_RESULT     (1 << 17)  /* If 1, feed the opposite lane's result into this lane's accumulator on POP. */
 #define RP2040_SIO_INTERP0_CTRL_LANE0_CROSS_INPUT      (1 << 16)  /* If 1, feed the opposite lane's accumulator into this lane's shift + mask hardware. Takes effect even if ADD_RAW is set (the CROSS_INPUT mux is before the shift+mask bypass) */
 #define RP2040_SIO_INTERP0_CTRL_LANE0_SIGNED           (1 << 15)  /* If SIGNED is set, the shifted and masked accumulator value is sign-extended to 32 bits before adding to BASE0, and LANE0 PEEK/POP appear extended to 32 bits when read by processor. */
-#define RP2040_SIO_INTERP0_CTRL_LANE0_MASK_MSB_SHIFT   (10)  /* The most-significant bit allowed to pass by the mask (inclusive) Setting MSB < LSB may cause chip to turn inside-out */
+#define RP2040_SIO_INTERP0_CTRL_LANE0_MASK_MSB_SHIFT   (10)       /* The most-significant bit allowed to pass by the mask (inclusive) Setting MSB < LSB may cause chip to turn inside-out */
 #define RP2040_SIO_INTERP0_CTRL_LANE0_MASK_MSB_MASK    (0x1f << RP2040_SIO_INTERP0_CTRL_LANE0_MASK_MSB_SHIFT)
-#define RP2040_SIO_INTERP0_CTRL_LANE0_MASK_LSB_SHIFT   (5)  /* The least-significant bit allowed to pass by the mask (inclusive) */
+#define RP2040_SIO_INTERP0_CTRL_LANE0_MASK_LSB_SHIFT   (5)        /* The least-significant bit allowed to pass by the mask (inclusive) */
 #define RP2040_SIO_INTERP0_CTRL_LANE0_MASK_LSB_MASK    (0x1f << RP2040_SIO_INTERP0_CTRL_LANE0_MASK_LSB_SHIFT)
-#define RP2040_SIO_INTERP0_CTRL_LANE0_SHIFT_MASK       (0x1f)  /* Logical right-shift applied to accumulator before masking */
+#define RP2040_SIO_INTERP0_CTRL_LANE0_SHIFT_MASK       (0x1f)     /* Logical right-shift applied to accumulator before masking */
 
-#define RP2040_SIO_INTERP0_CTRL_LANE1_FORCE_MSB_SHIFT  (19)  /* ORed into bits 29:28 of the lane result presented to the processor on the bus. No effect on the internal 32-bit datapath. Handy for using a lane to generate sequence of pointers into flash or SRAM. */
+#define RP2040_SIO_INTERP0_CTRL_LANE1_FORCE_MSB_SHIFT  (19)       /* ORed into bits 29:28 of the lane result presented to the processor on the bus. No effect on the internal 32-bit datapath. Handy for using a lane to generate sequence of pointers into flash or SRAM. */
 #define RP2040_SIO_INTERP0_CTRL_LANE1_FORCE_MSB_MASK   (0x03 << RP2040_SIO_INTERP0_CTRL_LANE1_FORCE_MSB_SHIFT)
 #define RP2040_SIO_INTERP0_CTRL_LANE1_ADD_RAW          (1 << 18)  /* If 1, mask + shift is bypassed for LANE1 result. This does not affect FULL result. */
 #define RP2040_SIO_INTERP0_CTRL_LANE1_CROSS_RESULT     (1 << 17)  /* If 1, feed the opposite lane's result into this lane's accumulator on POP. */
 #define RP2040_SIO_INTERP0_CTRL_LANE1_CROSS_INPUT      (1 << 16)  /* If 1, feed the opposite lane's accumulator into this lane's shift + mask hardware. Takes effect even if ADD_RAW is set (the CROSS_INPUT mux is before the shift+mask bypass) */
 #define RP2040_SIO_INTERP0_CTRL_LANE1_SIGNED           (1 << 15)  /* If SIGNED is set, the shifted and masked accumulator value is sign-extended to 32 bits before adding to BASE1, and LANE1 PEEK/POP appear extended to 32 bits when read by processor. */
-#define RP2040_SIO_INTERP0_CTRL_LANE1_MASK_MSB_SHIFT   (10)  /* The most-significant bit allowed to pass by the mask (inclusive) Setting MSB < LSB may cause chip to turn inside-out */
+#define RP2040_SIO_INTERP0_CTRL_LANE1_MASK_MSB_SHIFT   (10)       /* The most-significant bit allowed to pass by the mask (inclusive) Setting MSB < LSB may cause chip to turn inside-out */
 #define RP2040_SIO_INTERP0_CTRL_LANE1_MASK_MSB_MASK    (0x1f << RP2040_SIO_INTERP0_CTRL_LANE1_MASK_MSB_SHIFT)
-#define RP2040_SIO_INTERP0_CTRL_LANE1_MASK_LSB_SHIFT   (5)  /* The least-significant bit allowed to pass by the mask (inclusive) */
+#define RP2040_SIO_INTERP0_CTRL_LANE1_MASK_LSB_SHIFT   (5)        /* The least-significant bit allowed to pass by the mask (inclusive) */
 #define RP2040_SIO_INTERP0_CTRL_LANE1_MASK_LSB_MASK    (0x1f << RP2040_SIO_INTERP0_CTRL_LANE1_MASK_LSB_SHIFT)
-#define RP2040_SIO_INTERP0_CTRL_LANE1_SHIFT_MASK       (0x1f)  /* Logical right-shift applied to accumulator before masking */
+#define RP2040_SIO_INTERP0_CTRL_LANE1_SHIFT_MASK       (0x1f)     /* Logical right-shift applied to accumulator before masking */
 
 #define RP2040_SIO_INTERP0_ACCUM0_ADD_MASK             (0xffffff)
 
@@ -307,29 +307,29 @@
 #define RP2040_SIO_INTERP1_CTRL_LANE0_OVERF1           (1 << 24)  /* Indicates if any masked-off MSBs in ACCUM1 are set. */
 #define RP2040_SIO_INTERP1_CTRL_LANE0_OVERF0           (1 << 23)  /* Indicates if any masked-off MSBs in ACCUM0 are set. */
 #define RP2040_SIO_INTERP1_CTRL_LANE0_CLAMP            (1 << 22)  /* Only present on INTERP1 on each core. If CLAMP mode is enabled: - LANE0 result is shifted and masked ACCUM0, clamped by a lower bound of BASE0 and an upper bound of BASE1. - Signedness of these comparisons is determined by LANE0_CTRL_SIGNED */
-#define RP2040_SIO_INTERP1_CTRL_LANE0_FORCE_MSB_SHIFT  (19)  /* ORed into bits 29:28 of the lane result presented to the processor on the bus. No effect on the internal 32-bit datapath. Handy for using a lane to generate sequence of pointers into flash or SRAM. */
+#define RP2040_SIO_INTERP1_CTRL_LANE0_FORCE_MSB_SHIFT  (19)       /* ORed into bits 29:28 of the lane result presented to the processor on the bus. No effect on the internal 32-bit datapath. Handy for using a lane to generate sequence of pointers into flash or SRAM. */
 #define RP2040_SIO_INTERP1_CTRL_LANE0_FORCE_MSB_MASK   (0x03 << RP2040_SIO_INTERP1_CTRL_LANE0_FORCE_MSB_SHIFT)
 #define RP2040_SIO_INTERP1_CTRL_LANE0_ADD_RAW          (1 << 18)  /* If 1, mask + shift is bypassed for LANE0 result. This does not affect FULL result. */
 #define RP2040_SIO_INTERP1_CTRL_LANE0_CROSS_RESULT     (1 << 17)  /* If 1, feed the opposite lane's result into this lane's accumulator on POP. */
 #define RP2040_SIO_INTERP1_CTRL_LANE0_CROSS_INPUT      (1 << 16)  /* If 1, feed the opposite lane's accumulator into this lane's shift + mask hardware. Takes effect even if ADD_RAW is set (the CROSS_INPUT mux is before the shift+mask bypass) */
 #define RP2040_SIO_INTERP1_CTRL_LANE0_SIGNED           (1 << 15)  /* If SIGNED is set, the shifted and masked accumulator value is sign-extended to 32 bits before adding to BASE0, and LANE0 PEEK/POP appear extended to 32 bits when read by processor. */
-#define RP2040_SIO_INTERP1_CTRL_LANE0_MASK_MSB_SHIFT   (10)  /* The most-significant bit allowed to pass by the mask (inclusive) Setting MSB < LSB may cause chip to turn inside-out */
+#define RP2040_SIO_INTERP1_CTRL_LANE0_MASK_MSB_SHIFT   (10)       /* The most-significant bit allowed to pass by the mask (inclusive) Setting MSB < LSB may cause chip to turn inside-out */
 #define RP2040_SIO_INTERP1_CTRL_LANE0_MASK_MSB_MASK    (0x1f << RP2040_SIO_INTERP1_CTRL_LANE0_MASK_MSB_SHIFT)
-#define RP2040_SIO_INTERP1_CTRL_LANE0_MASK_LSB_SHIFT   (5)  /* The least-significant bit allowed to pass by the mask (inclusive) */
+#define RP2040_SIO_INTERP1_CTRL_LANE0_MASK_LSB_SHIFT   (5)        /* The least-significant bit allowed to pass by the mask (inclusive) */
 #define RP2040_SIO_INTERP1_CTRL_LANE0_MASK_LSB_MASK    (0x1f << RP2040_SIO_INTERP1_CTRL_LANE0_MASK_LSB_SHIFT)
-#define RP2040_SIO_INTERP1_CTRL_LANE0_SHIFT_MASK       (0x1f)  /* Logical right-shift applied to accumulator before masking */
+#define RP2040_SIO_INTERP1_CTRL_LANE0_SHIFT_MASK       (0x1f)     /* Logical right-shift applied to accumulator before masking */
 
-#define RP2040_SIO_INTERP1_CTRL_LANE1_FORCE_MSB_SHIFT  (19)  /* ORed into bits 29:28 of the lane result presented to the processor on the bus. No effect on the internal 32-bit datapath. Handy for using a lane to generate sequence of pointers into flash or SRAM. */
+#define RP2040_SIO_INTERP1_CTRL_LANE1_FORCE_MSB_SHIFT  (19)       /* ORed into bits 29:28 of the lane result presented to the processor on the bus. No effect on the internal 32-bit datapath. Handy for using a lane to generate sequence of pointers into flash or SRAM. */
 #define RP2040_SIO_INTERP1_CTRL_LANE1_FORCE_MSB_MASK   (0x03 << RP2040_SIO_INTERP1_CTRL_LANE1_FORCE_MSB_SHIFT)
 #define RP2040_SIO_INTERP1_CTRL_LANE1_ADD_RAW          (1 << 18)  /* If 1, mask + shift is bypassed for LANE1 result. This does not affect FULL result. */
 #define RP2040_SIO_INTERP1_CTRL_LANE1_CROSS_RESULT     (1 << 17)  /* If 1, feed the opposite lane's result into this lane's accumulator on POP. */
 #define RP2040_SIO_INTERP1_CTRL_LANE1_CROSS_INPUT      (1 << 16)  /* If 1, feed the opposite lane's accumulator into this lane's shift + mask hardware. Takes effect even if ADD_RAW is set (the CROSS_INPUT mux is before the shift+mask bypass) */
 #define RP2040_SIO_INTERP1_CTRL_LANE1_SIGNED           (1 << 15)  /* If SIGNED is set, the shifted and masked accumulator value is sign-extended to 32 bits before adding to BASE1, and LANE1 PEEK/POP appear extended to 32 bits when read by processor. */
-#define RP2040_SIO_INTERP1_CTRL_LANE1_MASK_MSB_SHIFT   (10)  /* The most-significant bit allowed to pass by the mask (inclusive) Setting MSB < LSB may cause chip to turn inside-out */
+#define RP2040_SIO_INTERP1_CTRL_LANE1_MASK_MSB_SHIFT   (10)       /* The most-significant bit allowed to pass by the mask (inclusive) Setting MSB < LSB may cause chip to turn inside-out */
 #define RP2040_SIO_INTERP1_CTRL_LANE1_MASK_MSB_MASK    (0x1f << RP2040_SIO_INTERP1_CTRL_LANE1_MASK_MSB_SHIFT)
-#define RP2040_SIO_INTERP1_CTRL_LANE1_MASK_LSB_SHIFT   (5)  /* The least-significant bit allowed to pass by the mask (inclusive) */
+#define RP2040_SIO_INTERP1_CTRL_LANE1_MASK_LSB_SHIFT   (5)        /* The least-significant bit allowed to pass by the mask (inclusive) */
 #define RP2040_SIO_INTERP1_CTRL_LANE1_MASK_LSB_MASK    (0x1f << RP2040_SIO_INTERP1_CTRL_LANE1_MASK_LSB_SHIFT)
-#define RP2040_SIO_INTERP1_CTRL_LANE1_SHIFT_MASK       (0x1f)  /* Logical right-shift applied to accumulator before masking */
+#define RP2040_SIO_INTERP1_CTRL_LANE1_SHIFT_MASK       (0x1f)     /* Logical right-shift applied to accumulator before masking */
 
 #define RP2040_SIO_INTERP1_ACCUM0_ADD_MASK             (0xffffff)
 

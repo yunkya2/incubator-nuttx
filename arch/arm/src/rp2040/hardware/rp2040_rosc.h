@@ -67,41 +67,41 @@
 #define RP2040_ROSC_CTRL_FREQ_RANGE_HIGH     (0xfa7)
 #define RP2040_ROSC_CTRL_FREQ_RANGE_TOOHIGH  (0xfa6)
 
-#define RP2040_ROSC_FREQA_PASSWD_SHIFT       (16)  /* Set to 0x9696 to apply the settings Any other value in this field will set all drive strengths to 0 */
+#define RP2040_ROSC_FREQA_PASSWD_SHIFT       (16)    /* Set to 0x9696 to apply the settings Any other value in this field will set all drive strengths to 0 */
 #define RP2040_ROSC_FREQA_PASSWD_MASK        (0xffff << RP2040_ROSC_FREQA_PASSWD_SHIFT)
 #define RP2040_ROSC_FREQA_PASSWD_PASS        (0x9696 << RP2040_ROSC_FREQA_PASSWD_SHIFT)
-#define RP2040_ROSC_FREQA_DS3_SHIFT          (12)  /* Stage 3 drive strength */
+#define RP2040_ROSC_FREQA_DS3_SHIFT          (12)    /* Stage 3 drive strength */
 #define RP2040_ROSC_FREQA_DS3_MASK           (0x07 << RP2040_ROSC_FREQA_DS3_SHIFT)
-#define RP2040_ROSC_FREQA_DS2_SHIFT          (8)  /* Stage 2 drive strength */
+#define RP2040_ROSC_FREQA_DS2_SHIFT          (8)     /* Stage 2 drive strength */
 #define RP2040_ROSC_FREQA_DS2_MASK           (0x07 << RP2040_ROSC_FREQA_DS2_SHIFT)
-#define RP2040_ROSC_FREQA_DS1_SHIFT          (4)  /* Stage 1 drive strength */
+#define RP2040_ROSC_FREQA_DS1_SHIFT          (4)     /* Stage 1 drive strength */
 #define RP2040_ROSC_FREQA_DS1_MASK           (0x07 << RP2040_ROSC_FREQA_DS1_SHIFT)
 #define RP2040_ROSC_FREQA_DS0_MASK           (0x07)  /* Stage 0 drive strength */
 
-#define RP2040_ROSC_FREQB_PASSWD_SHIFT       (16)  /* Set to 0x9696 to apply the settings Any other value in this field will set all drive strengths to 0 */
+#define RP2040_ROSC_FREQB_PASSWD_SHIFT       (16)    /* Set to 0x9696 to apply the settings Any other value in this field will set all drive strengths to 0 */
 #define RP2040_ROSC_FREQB_PASSWD_MASK        (0xffff << RP2040_ROSC_FREQB_PASSWD_SHIFT)
 #define RP2040_ROSC_FREQB_PASSWD_PASS        (0x9696 << RP2040_ROSC_FREQB_PASSWD_SHIFT)
-#define RP2040_ROSC_FREQB_DS7_SHIFT          (12)  /* Stage 7 drive strength */
+#define RP2040_ROSC_FREQB_DS7_SHIFT          (12)    /* Stage 7 drive strength */
 #define RP2040_ROSC_FREQB_DS7_MASK           (0x07 << RP2040_ROSC_FREQB_DS7_SHIFT)
-#define RP2040_ROSC_FREQB_DS6_SHIFT          (8)  /* Stage 6 drive strength */
+#define RP2040_ROSC_FREQB_DS6_SHIFT          (8)     /* Stage 6 drive strength */
 #define RP2040_ROSC_FREQB_DS6_MASK           (0x07 << RP2040_ROSC_FREQB_DS6_SHIFT)
-#define RP2040_ROSC_FREQB_DS5_SHIFT          (4)  /* Stage 5 drive strength */
+#define RP2040_ROSC_FREQB_DS5_SHIFT          (4)     /* Stage 5 drive strength */
 #define RP2040_ROSC_FREQB_DS5_MASK           (0x07 << RP2040_ROSC_FREQB_DS5_SHIFT)
 #define RP2040_ROSC_FREQB_DS4_MASK           (0x07)  /* Stage 4 drive strength */
 
 #define RP2040_ROSC_DIV_MASK                 (0xfff)
 #define RP2040_ROSC_DIV_PASS                 (0xaa0)
 
-#define RP2040_ROSC_PHASE_PASSWD_SHIFT       (4)  /* set to 0xaa0 any other value enables the output with shift=0 */
+#define RP2040_ROSC_PHASE_PASSWD_SHIFT       (4)       /* set to 0xaa0 any other value enables the output with shift=0 */
 #define RP2040_ROSC_PHASE_PASSWD_MASK        (0xff << RP2040_ROSC_PHASE_PASSWD_SHIFT)
 #define RP2040_ROSC_PHASE_ENABLE             (1 << 3)  /* enable the phase-shifted output this can be changed on-the-fly */
 #define RP2040_ROSC_PHASE_FLIP               (1 << 2)  /* invert the phase-shifted output this is ignored when div=1 */
-#define RP2040_ROSC_PHASE_SHIFT_MASK         (0x03)  /* phase shift the phase-shifted output by SHIFT input clocks this can be changed on-the-fly must be set to 0 before setting div=1 */
+#define RP2040_ROSC_PHASE_SHIFT_MASK         (0x03)    /* phase shift the phase-shifted output by SHIFT input clocks this can be changed on-the-fly must be set to 0 before setting div=1 */
 
-#define RP2040_ROSC_STATUS_STABLE            (1 << 31)  /* Oscillator is running and stable */
-#define RP2040_ROSC_STATUS_BADWRITE          (1 << 24)  /* An invalid value has been written to CTRL_ENABLE or CTRL_FREQ_RANGE or FRFEQA or FREQB or DORMANT */
-#define RP2040_ROSC_STATUS_DIV_RUNNING       (1 << 16)  /* post-divider is running this resets to 0 but transitions to 1 during chip startup */
-#define RP2040_ROSC_STATUS_ENABLED           (1 << 12)  /* Oscillator is enabled but not necessarily running and stable this resets to 0 but transitions to 1 during chip startup */
+#define RP2040_ROSC_STATUS_STABLE            (1 << 31) /* Oscillator is running and stable */
+#define RP2040_ROSC_STATUS_BADWRITE          (1 << 24) /* An invalid value has been written to CTRL_ENABLE or CTRL_FREQ_RANGE or FRFEQA or FREQB or DORMANT */
+#define RP2040_ROSC_STATUS_DIV_RUNNING       (1 << 16) /* post-divider is running this resets to 0 but transitions to 1 during chip startup */
+#define RP2040_ROSC_STATUS_ENABLED           (1 << 12) /* Oscillator is enabled but not necessarily running and stable this resets to 0 but transitions to 1 during chip startup */
 
 #define RP2040_ROSC_RANDOMBIT                (1 << 0)
 

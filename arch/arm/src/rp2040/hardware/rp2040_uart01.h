@@ -108,11 +108,11 @@
 
 /* Register bit definitions *************************************************/
 
-#define RP2040_UART_UARTDR_OE                         (1 << 11)  /* Overrun error. This bit is set to 1 if data is received and the receive FIFO is already full. This is cleared to 0 once there is an empty space in the FIFO and a new character can be written to it. */
-#define RP2040_UART_UARTDR_BE                         (1 << 10)  /* Break error. This bit is set to 1 if a break condition was detected, indicating that the received data input was held LOW for longer than a full-word transmission time (defined as start, data, parity and stop bits). In FIFO mode, this error is associated with the character at the top of the FIFO. When a break occurs, only one 0 character is loaded into the FIFO. The next character is only enabled after the receive data input goes to a 1 (marking state), and the next valid start bit is received. */
+#define RP2040_UART_UARTDR_OE                         (1 << 11) /* Overrun error. This bit is set to 1 if data is received and the receive FIFO is already full. This is cleared to 0 once there is an empty space in the FIFO and a new character can be written to it. */
+#define RP2040_UART_UARTDR_BE                         (1 << 10) /* Break error. This bit is set to 1 if a break condition was detected, indicating that the received data input was held LOW for longer than a full-word transmission time (defined as start, data, parity and stop bits). In FIFO mode, this error is associated with the character at the top of the FIFO. When a break occurs, only one 0 character is loaded into the FIFO. The next character is only enabled after the receive data input goes to a 1 (marking state), and the next valid start bit is received. */
 #define RP2040_UART_UARTDR_PE                         (1 << 9)  /* Parity error. When set to 1, it indicates that the parity of the received data character does not match the parity that the EPS and SPS bits in the Line Control Register, UARTLCR_H. In FIFO mode, this error is associated with the character at the top of the FIFO. */
 #define RP2040_UART_UARTDR_FE                         (1 << 8)  /* Framing error. When set to 1, it indicates that the received character did not have a valid stop bit (a valid stop bit is 1). In FIFO mode, this error is associated with the character at the top of the FIFO. */
-#define RP2040_UART_UARTDR_DATA_MASK                  (0xff)  /* Receive (read) data character. Transmit (write) data character. */
+#define RP2040_UART_UARTDR_DATA_MASK                  (0xff)    /* Receive (read) data character. Transmit (write) data character. */
 
 #define RP2040_UART_UARTRSR_OE                        (1 << 3)  /* Overrun error. This bit is set to 1 if data is received and the FIFO is already full. This bit is cleared to 0 by a write to UARTECR. The FIFO contents remain valid because no more data is written when the FIFO is full, only the contents of the shift register are overwritten. The CPU must now read the data, to empty the FIFO. */
 #define RP2040_UART_UARTRSR_BE                        (1 << 2)  /* Break error. This bit is set to 1 if a break condition was detected, indicating that the received data input was held LOW for longer than a full-word transmission time (defined as start, data, parity, and stop bits). This bit is cleared to 0 after a write to UARTECR. In FIFO mode, this error is associated with the character at the top of the FIFO. When a break occurs, only one 0 character is loaded into the FIFO. The next character is only enabled after the receive data input goes to a 1 (marking state) and the next valid start bit is received. */
@@ -129,14 +129,14 @@
 #define RP2040_UART_UARTFR_DSR                        (1 << 1)  /* Data set ready. This bit is the complement of the UART data set ready, nUARTDSR, modem status input. That is, the bit is 1 when nUARTDSR is LOW. */
 #define RP2040_UART_UARTFR_CTS                        (1 << 0)  /* Clear to send. This bit is the complement of the UART clear to send, nUARTCTS, modem status input. That is, the bit is 1 when nUARTCTS is LOW. */
 
-#define RP2040_UART_UARTILPR_ILPDVSR_MASK             (0xff)  /* 8-bit low-power divisor value. These bits are cleared to 0 at reset. */
+#define RP2040_UART_UARTILPR_ILPDVSR_MASK             (0xff)    /* 8-bit low-power divisor value. These bits are cleared to 0 at reset. */
 
 #define RP2040_UART_UARTIBRD_BAUD_DIVINT_MASK         (0xffff)  /* The integer baud rate divisor. These bits are cleared to 0 on reset. */
 
-#define RP2040_UART_UARTFBRD_BAUD_DIVFRAC_MASK        (0x3f)  /* The fractional baud rate divisor. These bits are cleared to 0 on reset. */
+#define RP2040_UART_UARTFBRD_BAUD_DIVFRAC_MASK        (0x3f)    /* The fractional baud rate divisor. These bits are cleared to 0 on reset. */
 
 #define RP2040_UART_UARTLCR_H_SPS                     (1 << 7)  /* Stick parity select. 0 = stick parity is disabled 1 = either: * if the EPS bit is 0 then the parity bit is transmitted and checked as a 1 * if the EPS bit is 1 then the parity bit is transmitted and checked as a 0. This bit has no effect when the PEN bit disables parity checking and generation. */
-#define RP2040_UART_UARTLCR_H_WLEN_SHIFT              (5)  /* Word length. These bits indicate the number of data bits transmitted or received in a frame as follows: b11 = 8 bits b10 = 7 bits b01 = 6 bits b00 = 5 bits. */
+#define RP2040_UART_UARTLCR_H_WLEN_SHIFT              (5)       /* Word length. These bits indicate the number of data bits transmitted or received in a frame as follows: b11 = 8 bits b10 = 7 bits b01 = 6 bits b00 = 5 bits. */
 #define RP2040_UART_UARTLCR_H_WLEN_MASK               (0x03 << RP2040_UART_UARTLCR_H_WLEN_SHIFT)
 #define RP2040_UART_UARTLCR_H_FEN                     (1 << 4)  /* Enable FIFOs: 0 = FIFOs are disabled (character mode) that is, the FIFOs become 1-byte-deep holding registers 1 = transmit and receive FIFO buffers are enabled (FIFO mode). */
 #define RP2040_UART_UARTLCR_H_STP2                    (1 << 3)  /* Two stop bits select. If this bit is set to 1, two stop bits are transmitted at the end of the frame. The receive logic does not check for two stop bits being received. */
@@ -146,12 +146,12 @@
 
 #define RP2040_UART_LCR_H_WLEN(x)                     ((((x) - 5) << RP2040_UART_UARTLCR_H_WLEN_SHIFT) & RP2040_UART_UARTLCR_H_WLEN_MASK)
 
-#define RP2040_UART_UARTCR_CTSEN                      (1 << 15)  /* CTS hardware flow control enable. If this bit is set to 1, CTS hardware flow control is enabled. Data is only transmitted when the nUARTCTS signal is asserted. */
-#define RP2040_UART_UARTCR_RTSEN                      (1 << 14)  /* RTS hardware flow control enable. If this bit is set to 1, RTS hardware flow control is enabled. Data is only requested when there is space in the receive FIFO for it to be received. */
-#define RP2040_UART_UARTCR_OUT2                       (1 << 13)  /* This bit is the complement of the UART Out2 (nUARTOut2) modem status output. That is, when the bit is programmed to a 1, the output is 0. For DTE this can be used as Ring Indicator (RI). */
-#define RP2040_UART_UARTCR_OUT1                       (1 << 12)  /* This bit is the complement of the UART Out1 (nUARTOut1) modem status output. That is, when the bit is programmed to a 1 the output is 0. For DTE this can be used as Data Carrier Detect (DCD). */
-#define RP2040_UART_UARTCR_RTS                        (1 << 11)  /* Request to send. This bit is the complement of the UART request to send, nUARTRTS, modem status output. That is, when the bit is programmed to a 1 then nUARTRTS is LOW. */
-#define RP2040_UART_UARTCR_DTR                        (1 << 10)  /* Data transmit ready. This bit is the complement of the UART data transmit ready, nUARTDTR, modem status output. That is, when the bit is programmed to a 1 then nUARTDTR is LOW. */
+#define RP2040_UART_UARTCR_CTSEN                      (1 << 15) /* CTS hardware flow control enable. If this bit is set to 1, CTS hardware flow control is enabled. Data is only transmitted when the nUARTCTS signal is asserted. */
+#define RP2040_UART_UARTCR_RTSEN                      (1 << 14) /* RTS hardware flow control enable. If this bit is set to 1, RTS hardware flow control is enabled. Data is only requested when there is space in the receive FIFO for it to be received. */
+#define RP2040_UART_UARTCR_OUT2                       (1 << 13) /* This bit is the complement of the UART Out2 (nUARTOut2) modem status output. That is, when the bit is programmed to a 1, the output is 0. For DTE this can be used as Ring Indicator (RI). */
+#define RP2040_UART_UARTCR_OUT1                       (1 << 12) /* This bit is the complement of the UART Out1 (nUARTOut1) modem status output. That is, when the bit is programmed to a 1 the output is 0. For DTE this can be used as Data Carrier Detect (DCD). */
+#define RP2040_UART_UARTCR_RTS                        (1 << 11) /* Request to send. This bit is the complement of the UART request to send, nUARTRTS, modem status output. That is, when the bit is programmed to a 1 then nUARTRTS is LOW. */
+#define RP2040_UART_UARTCR_DTR                        (1 << 10) /* Data transmit ready. This bit is the complement of the UART data transmit ready, nUARTDTR, modem status output. That is, when the bit is programmed to a 1 then nUARTDTR is LOW. */
 #define RP2040_UART_UARTCR_RXE                        (1 << 9)  /* Receive enable. If this bit is set to 1, the receive section of the UART is enabled. Data reception occurs for either UART signals or SIR signals depending on the setting of the SIREN bit. When the UART is disabled in the middle of reception, it completes the current character before stopping. */
 #define RP2040_UART_UARTCR_TXE                        (1 << 8)  /* Transmit enable. If this bit is set to 1, the transmit section of the UART is enabled. Data transmission occurs for either UART signals, or SIR signals depending on the setting of the SIREN bit. When the UART is disabled in the middle of transmission, it completes the current character before stopping. */
 #define RP2040_UART_UARTCR_LBE                        (1 << 7)  /* Loopback enable. If this bit is set to 1 and the SIREN bit is set to 1 and the SIRTEST bit in the Test Control Register, UARTTCR is set to 1, then the nSIROUT path is inverted, and fed through to the SIRIN path. The SIRTEST bit in the test register must be set to 1 to override the normal half-duplex SIR operation. This must be the requirement for accessing the test registers during normal operation, and SIRTEST must be cleared to 0 when loopback testing is finished. This feature reduces the amount of external coupling required during system test. If this bit is set to 1, and the SIRTEST bit is set to 0, the UARTTXD path is fed through to the UARTRXD path. In either SIR mode or UART mode, when this bit is set, the modem outputs are also fed through to the modem inputs. This bit is cleared to 0 on reset, to disable loopback. */
@@ -159,13 +159,13 @@
 #define RP2040_UART_UARTCR_SIREN                      (1 << 1)  /* SIR enable: 0 = IrDA SIR ENDEC is disabled. nSIROUT remains LOW (no light pulse generated), and signal transitions on SIRIN have no effect. 1 = IrDA SIR ENDEC is enabled. Data is transmitted and received on nSIROUT and SIRIN. UARTTXD remains HIGH, in the marking state. Signal transitions on UARTRXD or modem status inputs have no effect. This bit has no effect if the UARTEN bit disables the UART. */
 #define RP2040_UART_UARTCR_UARTEN                     (1 << 0)  /* UART enable: 0 = UART is disabled. If the UART is disabled in the middle of transmission or reception, it completes the current character before stopping. 1 = the UART is enabled. Data transmission and reception occurs for either UART signals or SIR signals depending on the setting of the SIREN bit. */
 
-#define RP2040_UART_UARTIFLS_RXIFLSEL_SHIFT           (3)  /* Receive interrupt FIFO level select. The trigger points for the receive interrupt are as follows: b000 = Receive FIFO becomes >= 1 / 8 full b001 = Receive FIFO becomes >= 1 / 4 full b010 = Receive FIFO becomes >= 1 / 2 full b011 = Receive FIFO becomes >= 3 / 4 full b100 = Receive FIFO becomes >= 7 / 8 full b101-b111 = reserved. */
+#define RP2040_UART_UARTIFLS_RXIFLSEL_SHIFT           (3)       /* Receive interrupt FIFO level select. The trigger points for the receive interrupt are as follows: b000 = Receive FIFO becomes >= 1 / 8 full b001 = Receive FIFO becomes >= 1 / 4 full b010 = Receive FIFO becomes >= 1 / 2 full b011 = Receive FIFO becomes >= 3 / 4 full b100 = Receive FIFO becomes >= 7 / 8 full b101-b111 = reserved. */
 #define RP2040_UART_UARTIFLS_RXIFLSEL_MASK            (0x07 << RP2040_UART_UARTIFLS_RXIFLSEL_SHIFT)
-#define RP2040_UART_UARTIFLS_TXIFLSEL_MASK            (0x07)  /* Transmit interrupt FIFO level select. The trigger points for the transmit interrupt are as follows: b000 = Transmit FIFO becomes <= 1 / 8 full b001 = Transmit FIFO becomes <= 1 / 4 full b010 = Transmit FIFO becomes <= 1 / 2 full b011 = Transmit FIFO becomes <= 3 / 4 full b100 = Transmit FIFO becomes <= 7 / 8 full b101-b111 = reserved. */
+#define RP2040_UART_UARTIFLS_TXIFLSEL_MASK            (0x07)    /* Transmit interrupt FIFO level select. The trigger points for the transmit interrupt are as follows: b000 = Transmit FIFO becomes <= 1 / 8 full b001 = Transmit FIFO becomes <= 1 / 4 full b010 = Transmit FIFO becomes <= 1 / 2 full b011 = Transmit FIFO becomes <= 3 / 4 full b100 = Transmit FIFO becomes <= 7 / 8 full b101-b111 = reserved. */
 
 #define RP2040_UART_INTR_ALL                          (0x7ff)   /* All of interrupts */
 
-#define RP2040_UART_UARTIMSC_OEIM                     (1 << 10)  /* Overrun error interrupt mask. A read returns the current mask for the UARTOEINTR interrupt. On a write of 1, the mask of the UARTOEINTR interrupt is set. A write of 0 clears the mask. */
+#define RP2040_UART_UARTIMSC_OEIM                     (1 << 10) /* Overrun error interrupt mask. A read returns the current mask for the UARTOEINTR interrupt. On a write of 1, the mask of the UARTOEINTR interrupt is set. A write of 0 clears the mask. */
 #define RP2040_UART_UARTIMSC_BEIM                     (1 << 9)  /* Break error interrupt mask. A read returns the current mask for the UARTBEINTR interrupt. On a write of 1, the mask of the UARTBEINTR interrupt is set. A write of 0 clears the mask. */
 #define RP2040_UART_UARTIMSC_PEIM                     (1 << 8)  /* Parity error interrupt mask. A read returns the current mask for the UARTPEINTR interrupt. On a write of 1, the mask of the UARTPEINTR interrupt is set. A write of 0 clears the mask. */
 #define RP2040_UART_UARTIMSC_FEIM                     (1 << 7)  /* Framing error interrupt mask. A read returns the current mask for the UARTFEINTR interrupt. On a write of 1, the mask of the UARTFEINTR interrupt is set. A write of 0 clears the mask. */
@@ -177,7 +177,7 @@
 #define RP2040_UART_UARTIMSC_CTSMIM                   (1 << 1)  /* nUARTCTS modem interrupt mask. A read returns the current mask for the UARTCTSINTR interrupt. On a write of 1, the mask of the UARTCTSINTR interrupt is set. A write of 0 clears the mask. */
 #define RP2040_UART_UARTIMSC_RIMIM                    (1 << 0)  /* nUARTRI modem interrupt mask. A read returns the current mask for the UARTRIINTR interrupt. On a write of 1, the mask of the UARTRIINTR interrupt is set. A write of 0 clears the mask. */
 
-#define RP2040_UART_UARTRIS_OERIS                     (1 << 10)  /* Overrun error interrupt status. Returns the raw interrupt state of the UARTOEINTR interrupt. */
+#define RP2040_UART_UARTRIS_OERIS                     (1 << 10) /* Overrun error interrupt status. Returns the raw interrupt state of the UARTOEINTR interrupt. */
 #define RP2040_UART_UARTRIS_BERIS                     (1 << 9)  /* Break error interrupt status. Returns the raw interrupt state of the UARTBEINTR interrupt. */
 #define RP2040_UART_UARTRIS_PERIS                     (1 << 8)  /* Parity error interrupt status. Returns the raw interrupt state of the UARTPEINTR interrupt. */
 #define RP2040_UART_UARTRIS_FERIS                     (1 << 7)  /* Framing error interrupt status. Returns the raw interrupt state of the UARTFEINTR interrupt. */
@@ -189,7 +189,7 @@
 #define RP2040_UART_UARTRIS_CTSRMIS                   (1 << 1)  /* nUARTCTS modem interrupt status. Returns the raw interrupt state of the UARTCTSINTR interrupt. */
 #define RP2040_UART_UARTRIS_RIRMIS                    (1 << 0)  /* nUARTRI modem interrupt status. Returns the raw interrupt state of the UARTRIINTR interrupt. */
 
-#define RP2040_UART_UARTMIS_OEMIS                     (1 << 10)  /* Overrun error masked interrupt status. Returns the masked interrupt state of the UARTOEINTR interrupt. */
+#define RP2040_UART_UARTMIS_OEMIS                     (1 << 10) /* Overrun error masked interrupt status. Returns the masked interrupt state of the UARTOEINTR interrupt. */
 #define RP2040_UART_UARTMIS_BEMIS                     (1 << 9)  /* Break error masked interrupt status. Returns the masked interrupt state of the UARTBEINTR interrupt. */
 #define RP2040_UART_UARTMIS_PEMIS                     (1 << 8)  /* Parity error masked interrupt status. Returns the masked interrupt state of the UARTPEINTR interrupt. */
 #define RP2040_UART_UARTMIS_FEMIS                     (1 << 7)  /* Framing error masked interrupt status. Returns the masked interrupt state of the UARTFEINTR interrupt. */
@@ -201,7 +201,7 @@
 #define RP2040_UART_UARTMIS_CTSMMIS                   (1 << 1)  /* nUARTCTS modem masked interrupt status. Returns the masked interrupt state of the UARTCTSINTR interrupt. */
 #define RP2040_UART_UARTMIS_RIMMIS                    (1 << 0)  /* nUARTRI modem masked interrupt status. Returns the masked interrupt state of the UARTRIINTR interrupt. */
 
-#define RP2040_UART_UARTICR_OEIC                      (1 << 10)  /* Overrun error interrupt clear. Clears the UARTOEINTR interrupt. */
+#define RP2040_UART_UARTICR_OEIC                      (1 << 10) /* Overrun error interrupt clear. Clears the UARTOEINTR interrupt. */
 #define RP2040_UART_UARTICR_BEIC                      (1 << 9)  /* Break error interrupt clear. Clears the UARTBEINTR interrupt. */
 #define RP2040_UART_UARTICR_PEIC                      (1 << 8)  /* Parity error interrupt clear. Clears the UARTPEINTR interrupt. */
 #define RP2040_UART_UARTICR_FEIC                      (1 << 7)  /* Framing error interrupt clear. Clears the UARTFEINTR interrupt. */
@@ -217,13 +217,13 @@
 #define RP2040_UART_UARTDMACR_TXDMAE                  (1 << 1)  /* Transmit DMA enable. If this bit is set to 1, DMA for the transmit FIFO is enabled. */
 #define RP2040_UART_UARTDMACR_RXDMAE                  (1 << 0)  /* Receive DMA enable. If this bit is set to 1, DMA for the receive FIFO is enabled. */
 
-#define RP2040_UART_UARTPERIPHID0_PARTNUMBER0_MASK    (0xff)  /* These bits read back as 0x11 */
+#define RP2040_UART_UARTPERIPHID0_PARTNUMBER0_MASK    (0xff)    /* These bits read back as 0x11 */
 
-#define RP2040_UART_UARTPERIPHID1_DESIGNER0_SHIFT     (4)  /* These bits read back as 0x1 */
+#define RP2040_UART_UARTPERIPHID1_DESIGNER0_SHIFT     (4)       /* These bits read back as 0x1 */
 #define RP2040_UART_UARTPERIPHID1_DESIGNER0_MASK      (0x0f << RP2040_UART_UARTPERIPHID1_DESIGNER0_SHIFT)
-#define RP2040_UART_UARTPERIPHID1_PARTNUMBER1_MASK    (0x0f)  /* These bits read back as 0x0 */
+#define RP2040_UART_UARTPERIPHID1_PARTNUMBER1_MASK    (0x0f)    /* These bits read back as 0x0 */
 
-#define RP2040_UART_UARTPERIPHID2_REVISION_SHIFT      (4)  /* This field depends on the revision of the UART: r1p0 0x0 r1p1 0x1 r1p3 0x2 r1p4 0x2 r1p5 0x3 */
+#define RP2040_UART_UARTPERIPHID2_REVISION_SHIFT      (4)     /* This field depends on the revision of the UART: r1p0 0x0 r1p1 0x1 r1p3 0x2 r1p4 0x2 r1p5 0x3 */
 #define RP2040_UART_UARTPERIPHID2_REVISION_MASK       (0x0f << RP2040_UART_UARTPERIPHID2_REVISION_SHIFT)
 #define RP2040_UART_UARTPERIPHID2_DESIGNER1_MASK      (0x0f)  /* These bits read back as 0x4 */
 

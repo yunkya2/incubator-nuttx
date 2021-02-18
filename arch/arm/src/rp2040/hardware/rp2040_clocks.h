@@ -136,12 +136,12 @@
 /* Register bit definitions *************************************************/
 
 #define RP2040_CLOCKS_CLK_GPOUT0_CTRL_NUDGE                  (1 << 20)  /* An edge on this signal shifts the phase of the output by 1 cycle of the input clock This can be done at any time */
-#define RP2040_CLOCKS_CLK_GPOUT0_CTRL_PHASE_SHIFT            (16)  /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
+#define RP2040_CLOCKS_CLK_GPOUT0_CTRL_PHASE_SHIFT            (16)       /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
 #define RP2040_CLOCKS_CLK_GPOUT0_CTRL_PHASE_MASK             (0x03 << RP2040_CLOCKS_CLK_GPOUT0_CTRL_PHASE_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT0_CTRL_DC50                   (1 << 12)  /* Enables duty cycle correction for odd divisors */
 #define RP2040_CLOCKS_CLK_GPOUT0_CTRL_ENABLE                 (1 << 11)  /* Starts and stops the clock generator cleanly */
 #define RP2040_CLOCKS_CLK_GPOUT0_CTRL_KILL                   (1 << 10)  /* Asynchronously kills the clock generator */
-#define RP2040_CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_SHIFT           (5)  /* Selects the auxiliary clock source, will glitch when switching */
+#define RP2040_CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_SHIFT           (5)        /* Selects the auxiliary clock source, will glitch when switching */
 #define RP2040_CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_MASK            (0x0f << RP2040_CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_CLKSRC_PLL_SYS  (0x0 << RP2040_CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_CLKSRC_GPIN0    (0x1 << RP2040_CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_SHIFT)
@@ -155,17 +155,17 @@
 #define RP2040_CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_CLK_RTC         (0x9 << RP2040_CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_CLK_REF         (0xa << RP2040_CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_SHIFT)
 
-#define RP2040_CLOCKS_CLK_GPOUT0_DIV_INT_SHIFT               (8)  /* Integer component of the divisor, 0 -> divide by 2^16 */
+#define RP2040_CLOCKS_CLK_GPOUT0_DIV_INT_SHIFT               (8)        /* Integer component of the divisor, 0 -> divide by 2^16 */
 #define RP2040_CLOCKS_CLK_GPOUT0_DIV_INT_MASK                (0xffffff << RP2040_CLOCKS_CLK_GPOUT0_DIV_INT_SHIFT)
-#define RP2040_CLOCKS_CLK_GPOUT0_DIV_FRAC_MASK               (0xff)  /* Fractional component of the divisor */
+#define RP2040_CLOCKS_CLK_GPOUT0_DIV_FRAC_MASK               (0xff)     /* Fractional component of the divisor */
 
 #define RP2040_CLOCKS_CLK_GPOUT1_CTRL_NUDGE                  (1 << 20)  /* An edge on this signal shifts the phase of the output by 1 cycle of the input clock This can be done at any time */
-#define RP2040_CLOCKS_CLK_GPOUT1_CTRL_PHASE_SHIFT            (16)  /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
+#define RP2040_CLOCKS_CLK_GPOUT1_CTRL_PHASE_SHIFT            (16)       /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
 #define RP2040_CLOCKS_CLK_GPOUT1_CTRL_PHASE_MASK             (0x03 << RP2040_CLOCKS_CLK_GPOUT1_CTRL_PHASE_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT1_CTRL_DC50                   (1 << 12)  /* Enables duty cycle correction for odd divisors */
 #define RP2040_CLOCKS_CLK_GPOUT1_CTRL_ENABLE                 (1 << 11)  /* Starts and stops the clock generator cleanly */
 #define RP2040_CLOCKS_CLK_GPOUT1_CTRL_KILL                   (1 << 10)  /* Asynchronously kills the clock generator */
-#define RP2040_CLOCKS_CLK_GPOUT1_CTRL_AUXSRC_SHIFT           (5)  /* Selects the auxiliary clock source, will glitch when switching */
+#define RP2040_CLOCKS_CLK_GPOUT1_CTRL_AUXSRC_SHIFT           (5)        /* Selects the auxiliary clock source, will glitch when switching */
 #define RP2040_CLOCKS_CLK_GPOUT1_CTRL_AUXSRC_MASK            (0x0f << RP2040_CLOCKS_CLK_GPOUT1_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT1_CTRL_AUXSRC_CLKSRC_PLL_SYS  (0x0 << RP2040_CLOCKS_CLK_GPOUT1_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT1_CTRL_AUXSRC_CLKSRC_GPIN0    (0x1 << RP2040_CLOCKS_CLK_GPOUT1_CTRL_AUXSRC_SHIFT)
@@ -179,17 +179,17 @@
 #define RP2040_CLOCKS_CLK_GPOUT1_CTRL_AUXSRC_CLK_RTC         (0x9 << RP2040_CLOCKS_CLK_GPOUT1_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT1_CTRL_AUXSRC_CLK_REF         (0xa << RP2040_CLOCKS_CLK_GPOUT1_CTRL_AUXSRC_SHIFT)
 
-#define RP2040_CLOCKS_CLK_GPOUT1_DIV_INT_SHIFT               (8)  /* Integer component of the divisor, 0 -> divide by 2^16 */
+#define RP2040_CLOCKS_CLK_GPOUT1_DIV_INT_SHIFT               (8)        /* Integer component of the divisor, 0 -> divide by 2^16 */
 #define RP2040_CLOCKS_CLK_GPOUT1_DIV_INT_MASK                (0xffffff << RP2040_CLOCKS_CLK_GPOUT1_DIV_INT_SHIFT)
-#define RP2040_CLOCKS_CLK_GPOUT1_DIV_FRAC_MASK               (0xff)  /* Fractional component of the divisor */
+#define RP2040_CLOCKS_CLK_GPOUT1_DIV_FRAC_MASK               (0xff)     /* Fractional component of the divisor */
 
 #define RP2040_CLOCKS_CLK_GPOUT2_CTRL_NUDGE                  (1 << 20)  /* An edge on this signal shifts the phase of the output by 1 cycle of the input clock This can be done at any time */
-#define RP2040_CLOCKS_CLK_GPOUT2_CTRL_PHASE_SHIFT            (16)  /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
+#define RP2040_CLOCKS_CLK_GPOUT2_CTRL_PHASE_SHIFT            (16)       /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
 #define RP2040_CLOCKS_CLK_GPOUT2_CTRL_PHASE_MASK             (0x03 << RP2040_CLOCKS_CLK_GPOUT2_CTRL_PHASE_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT2_CTRL_DC50                   (1 << 12)  /* Enables duty cycle correction for odd divisors */
 #define RP2040_CLOCKS_CLK_GPOUT2_CTRL_ENABLE                 (1 << 11)  /* Starts and stops the clock generator cleanly */
 #define RP2040_CLOCKS_CLK_GPOUT2_CTRL_KILL                   (1 << 10)  /* Asynchronously kills the clock generator */
-#define RP2040_CLOCKS_CLK_GPOUT2_CTRL_AUXSRC_SHIFT           (5)  /* Selects the auxiliary clock source, will glitch when switching */
+#define RP2040_CLOCKS_CLK_GPOUT2_CTRL_AUXSRC_SHIFT           (5)        /* Selects the auxiliary clock source, will glitch when switching */
 #define RP2040_CLOCKS_CLK_GPOUT2_CTRL_AUXSRC_MASK            (0x0f << RP2040_CLOCKS_CLK_GPOUT2_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT2_CTRL_AUXSRC_CLKSRC_PLL_SYS  (0x0 << RP2040_CLOCKS_CLK_GPOUT2_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT2_CTRL_AUXSRC_CLKSRC_GPIN0    (0x1 << RP2040_CLOCKS_CLK_GPOUT2_CTRL_AUXSRC_SHIFT)
@@ -203,17 +203,17 @@
 #define RP2040_CLOCKS_CLK_GPOUT2_CTRL_AUXSRC_CLK_RTC         (0x9 << RP2040_CLOCKS_CLK_GPOUT2_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT2_CTRL_AUXSRC_CLK_REF         (0xa << RP2040_CLOCKS_CLK_GPOUT2_CTRL_AUXSRC_SHIFT)
 
-#define RP2040_CLOCKS_CLK_GPOUT2_DIV_INT_SHIFT               (8)  /* Integer component of the divisor, 0 -> divide by 2^16 */
+#define RP2040_CLOCKS_CLK_GPOUT2_DIV_INT_SHIFT               (8)        /* Integer component of the divisor, 0 -> divide by 2^16 */
 #define RP2040_CLOCKS_CLK_GPOUT2_DIV_INT_MASK                (0xffffff << RP2040_CLOCKS_CLK_GPOUT2_DIV_INT_SHIFT)
-#define RP2040_CLOCKS_CLK_GPOUT2_DIV_FRAC_MASK               (0xff)  /* Fractional component of the divisor */
+#define RP2040_CLOCKS_CLK_GPOUT2_DIV_FRAC_MASK               (0xff)     /* Fractional component of the divisor */
 
 #define RP2040_CLOCKS_CLK_GPOUT3_CTRL_NUDGE                  (1 << 20)  /* An edge on this signal shifts the phase of the output by 1 cycle of the input clock This can be done at any time */
-#define RP2040_CLOCKS_CLK_GPOUT3_CTRL_PHASE_SHIFT            (16)  /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
+#define RP2040_CLOCKS_CLK_GPOUT3_CTRL_PHASE_SHIFT            (16)       /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
 #define RP2040_CLOCKS_CLK_GPOUT3_CTRL_PHASE_MASK             (0x03 << RP2040_CLOCKS_CLK_GPOUT3_CTRL_PHASE_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT3_CTRL_DC50                   (1 << 12)  /* Enables duty cycle correction for odd divisors */
 #define RP2040_CLOCKS_CLK_GPOUT3_CTRL_ENABLE                 (1 << 11)  /* Starts and stops the clock generator cleanly */
 #define RP2040_CLOCKS_CLK_GPOUT3_CTRL_KILL                   (1 << 10)  /* Asynchronously kills the clock generator */
-#define RP2040_CLOCKS_CLK_GPOUT3_CTRL_AUXSRC_SHIFT           (5)  /* Selects the auxiliary clock source, will glitch when switching */
+#define RP2040_CLOCKS_CLK_GPOUT3_CTRL_AUXSRC_SHIFT           (5)        /* Selects the auxiliary clock source, will glitch when switching */
 #define RP2040_CLOCKS_CLK_GPOUT3_CTRL_AUXSRC_MASK            (0x0f << RP2040_CLOCKS_CLK_GPOUT3_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT3_CTRL_AUXSRC_CLKSRC_PLL_SYS  (0x0 << RP2040_CLOCKS_CLK_GPOUT3_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT3_CTRL_AUXSRC_CLKSRC_GPIN0    (0x1 << RP2040_CLOCKS_CLK_GPOUT3_CTRL_AUXSRC_SHIFT)
@@ -227,11 +227,11 @@
 #define RP2040_CLOCKS_CLK_GPOUT3_CTRL_AUXSRC_CLK_RTC         (0x9 << RP2040_CLOCKS_CLK_GPOUT3_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_GPOUT3_CTRL_AUXSRC_CLK_REF         (0xa << RP2040_CLOCKS_CLK_GPOUT3_CTRL_AUXSRC_SHIFT)
 
-#define RP2040_CLOCKS_CLK_GPOUT3_DIV_INT_SHIFT               (8)  /* Integer component of the divisor, 0 -> divide by 2^16 */
+#define RP2040_CLOCKS_CLK_GPOUT3_DIV_INT_SHIFT               (8)        /* Integer component of the divisor, 0 -> divide by 2^16 */
 #define RP2040_CLOCKS_CLK_GPOUT3_DIV_INT_MASK                (0xffffff << RP2040_CLOCKS_CLK_GPOUT3_DIV_INT_SHIFT)
-#define RP2040_CLOCKS_CLK_GPOUT3_DIV_FRAC_MASK               (0xff)  /* Fractional component of the divisor */
+#define RP2040_CLOCKS_CLK_GPOUT3_DIV_FRAC_MASK               (0xff)     /* Fractional component of the divisor */
 
-#define RP2040_CLOCKS_CLK_REF_CTRL_AUXSRC_SHIFT              (5)  /* Selects the auxiliary clock source, will glitch when switching */
+#define RP2040_CLOCKS_CLK_REF_CTRL_AUXSRC_SHIFT              (5)        /* Selects the auxiliary clock source, will glitch when switching */
 #define RP2040_CLOCKS_CLK_REF_CTRL_AUXSRC_MASK               (0x03 << RP2040_CLOCKS_CLK_REF_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_REF_CTRL_AUXSRC_CLKSRC_PLL_USB     (0x0 << RP2040_CLOCKS_CLK_REF_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_REF_CTRL_AUXSRC_CLKSRC_GPIN0       (0x1 << RP2040_CLOCKS_CLK_REF_CTRL_AUXSRC_SHIFT)
@@ -241,10 +241,10 @@
 #define RP2040_CLOCKS_CLK_REF_CTRL_SRC_CLKSRC_CLK_REF_AUX    (0x1)
 #define RP2040_CLOCKS_CLK_REF_CTRL_SRC_XOSC_CLKSRC           (0x2)
 
-#define RP2040_CLOCKS_CLK_REF_DIV_INT_SHIFT                  (8)  /* Integer component of the divisor, 0 -> divide by 2^16 */
+#define RP2040_CLOCKS_CLK_REF_DIV_INT_SHIFT                  (8)        /* Integer component of the divisor, 0 -> divide by 2^16 */
 #define RP2040_CLOCKS_CLK_REF_DIV_INT_MASK                   (0x03 << RP2040_CLOCKS_CLK_REF_DIV_INT_SHIFT)
 
-#define RP2040_CLOCKS_CLK_SYS_CTRL_AUXSRC_SHIFT              (5)  /* Selects the auxiliary clock source, will glitch when switching */
+#define RP2040_CLOCKS_CLK_SYS_CTRL_AUXSRC_SHIFT              (5)        /* Selects the auxiliary clock source, will glitch when switching */
 #define RP2040_CLOCKS_CLK_SYS_CTRL_AUXSRC_MASK               (0x07 << RP2040_CLOCKS_CLK_SYS_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_SYS_CTRL_AUXSRC_CLKSRC_PLL_SYS     (0x0 << RP2040_CLOCKS_CLK_SYS_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_SYS_CTRL_AUXSRC_CLKSRC_PLL_USB     (0x1 << RP2040_CLOCKS_CLK_SYS_CTRL_AUXSRC_SHIFT)
@@ -257,11 +257,11 @@
 
 #define RP2040_CLOCKS_CLK_SYS_DIV_INT_SHIFT                  (8)  /* Integer component of the divisor, 0 -> divide by 2^16 */
 #define RP2040_CLOCKS_CLK_SYS_DIV_INT_MASK                   (0xffffff << RP2040_CLOCKS_CLK_SYS_DIV_INT_SHIFT)
-#define RP2040_CLOCKS_CLK_SYS_DIV_FRAC_MASK                  (0xff)  /* Fractional component of the divisor */
+#define RP2040_CLOCKS_CLK_SYS_DIV_FRAC_MASK                  (0xff)     /* Fractional component of the divisor */
 
 #define RP2040_CLOCKS_CLK_PERI_CTRL_ENABLE                   (1 << 11)  /* Starts and stops the clock generator cleanly */
 #define RP2040_CLOCKS_CLK_PERI_CTRL_KILL                     (1 << 10)  /* Asynchronously kills the clock generator */
-#define RP2040_CLOCKS_CLK_PERI_CTRL_AUXSRC_SHIFT             (5)  /* Selects the auxiliary clock source, will glitch when switching */
+#define RP2040_CLOCKS_CLK_PERI_CTRL_AUXSRC_SHIFT             (5)        /* Selects the auxiliary clock source, will glitch when switching */
 #define RP2040_CLOCKS_CLK_PERI_CTRL_AUXSRC_MASK              (0x07 << RP2040_CLOCKS_CLK_PERI_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_PERI_CTRL_AUXSRC_CLK_SYS           (0x0 << RP2040_CLOCKS_CLK_PERI_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_PERI_CTRL_AUXSRC_CLKSRC_PLL_SYS    (0x1 << RP2040_CLOCKS_CLK_PERI_CTRL_AUXSRC_SHIFT)
@@ -272,11 +272,11 @@
 #define RP2040_CLOCKS_CLK_PERI_CTRL_AUXSRC_CLKSRC_GPIN1      (0x6 << RP2040_CLOCKS_CLK_PERI_CTRL_AUXSRC_SHIFT)
 
 #define RP2040_CLOCKS_CLK_USB_CTRL_NUDGE                     (1 << 20)  /* An edge on this signal shifts the phase of the output by 1 cycle of the input clock This can be done at any time */
-#define RP2040_CLOCKS_CLK_USB_CTRL_PHASE_SHIFT               (16)  /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
+#define RP2040_CLOCKS_CLK_USB_CTRL_PHASE_SHIFT               (16)       /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
 #define RP2040_CLOCKS_CLK_USB_CTRL_PHASE_MASK                (0x03 << RP2040_CLOCKS_CLK_USB_CTRL_PHASE_SHIFT)
 #define RP2040_CLOCKS_CLK_USB_CTRL_ENABLE                    (1 << 11)  /* Starts and stops the clock generator cleanly */
 #define RP2040_CLOCKS_CLK_USB_CTRL_KILL                      (1 << 10)  /* Asynchronously kills the clock generator */
-#define RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_SHIFT              (5)  /* Selects the auxiliary clock source, will glitch when switching */
+#define RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_SHIFT              (5)        /* Selects the auxiliary clock source, will glitch when switching */
 #define RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_MASK               (0x07 << RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_CLKSRC_PLL_USB     (0x0 << RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_CLKSRC_PLL_SYS     (0x1 << RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_SHIFT)
@@ -285,15 +285,15 @@
 #define RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_CLKSRC_GPIN0       (0x4 << RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_CLKSRC_GPIN1       (0x5 << RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_SHIFT)
 
-#define RP2040_CLOCKS_CLK_USB_DIV_INT_SHIFT                  (8)  /* Integer component of the divisor, 0 -> divide by 2^16 */
+#define RP2040_CLOCKS_CLK_USB_DIV_INT_SHIFT                  (8)        /* Integer component of the divisor, 0 -> divide by 2^16 */
 #define RP2040_CLOCKS_CLK_USB_DIV_INT_MASK                   (0x03 << RP2040_CLOCKS_CLK_USB_DIV_INT_SHIFT)
 
 #define RP2040_CLOCKS_CLK_ADC_CTRL_NUDGE                     (1 << 20)  /* An edge on this signal shifts the phase of the output by 1 cycle of the input clock This can be done at any time */
-#define RP2040_CLOCKS_CLK_ADC_CTRL_PHASE_SHIFT               (16)  /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
+#define RP2040_CLOCKS_CLK_ADC_CTRL_PHASE_SHIFT               (16)       /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
 #define RP2040_CLOCKS_CLK_ADC_CTRL_PHASE_MASK                (0x03 << RP2040_CLOCKS_CLK_ADC_CTRL_PHASE_SHIFT)
 #define RP2040_CLOCKS_CLK_ADC_CTRL_ENABLE                    (1 << 11)  /* Starts and stops the clock generator cleanly */
 #define RP2040_CLOCKS_CLK_ADC_CTRL_KILL                      (1 << 10)  /* Asynchronously kills the clock generator */
-#define RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_SHIFT              (5)  /* Selects the auxiliary clock source, will glitch when switching */
+#define RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_SHIFT              (5)        /* Selects the auxiliary clock source, will glitch when switching */
 #define RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_MASK               (0x07 << RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_CLKSRC_PLL_USB     (0x0 << RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_CLKSRC_PLL_SYS     (0x1 << RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_SHIFT)
@@ -302,15 +302,15 @@
 #define RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_CLKSRC_GPIN0       (0x4 << RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_CLKSRC_GPIN1       (0x5 << RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_SHIFT)
 
-#define RP2040_CLOCKS_CLK_ADC_DIV_INT_SHIFT                  (8)  /* Integer component of the divisor, 0 -> divide by 2^16 */
+#define RP2040_CLOCKS_CLK_ADC_DIV_INT_SHIFT                  (8)        /* Integer component of the divisor, 0 -> divide by 2^16 */
 #define RP2040_CLOCKS_CLK_ADC_DIV_INT_MASK                   (0x03 << RP2040_CLOCKS_CLK_ADC_DIV_INT_SHIFT)
 
 #define RP2040_CLOCKS_CLK_RTC_CTRL_NUDGE                     (1 << 20)  /* An edge on this signal shifts the phase of the output by 1 cycle of the input clock This can be done at any time */
-#define RP2040_CLOCKS_CLK_RTC_CTRL_PHASE_SHIFT               (16)  /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
+#define RP2040_CLOCKS_CLK_RTC_CTRL_PHASE_SHIFT               (16)       /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
 #define RP2040_CLOCKS_CLK_RTC_CTRL_PHASE_MASK                (0x03 << RP2040_CLOCKS_CLK_RTC_CTRL_PHASE_SHIFT)
 #define RP2040_CLOCKS_CLK_RTC_CTRL_ENABLE                    (1 << 11)  /* Starts and stops the clock generator cleanly */
 #define RP2040_CLOCKS_CLK_RTC_CTRL_KILL                      (1 << 10)  /* Asynchronously kills the clock generator */
-#define RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_SHIFT              (5)  /* Selects the auxiliary clock source, will glitch when switching */
+#define RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_SHIFT              (5)        /* Selects the auxiliary clock source, will glitch when switching */
 #define RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_MASK               (0x07 << RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_CLKSRC_PLL_USB     (0x0 << RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_CLKSRC_PLL_SYS     (0x1 << RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_SHIFT)
@@ -319,16 +319,16 @@
 #define RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_CLKSRC_GPIN0       (0x4 << RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_CLKSRC_GPIN1       (0x5 << RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_SHIFT)
 
-#define RP2040_CLOCKS_CLK_RTC_DIV_INT_SHIFT                  (8)  /* Integer component of the divisor, 0 -> divide by 2^16 */
+#define RP2040_CLOCKS_CLK_RTC_DIV_INT_SHIFT                  (8)        /* Integer component of the divisor, 0 -> divide by 2^16 */
 #define RP2040_CLOCKS_CLK_RTC_DIV_INT_MASK                   (0xffffff << RP2040_CLOCKS_CLK_RTC_DIV_INT_SHIFT)
-#define RP2040_CLOCKS_CLK_RTC_DIV_FRAC_MASK                  (0xff)  /* Fractional component of the divisor */
+#define RP2040_CLOCKS_CLK_RTC_DIV_FRAC_MASK                  (0xff)     /* Fractional component of the divisor */
 
 #define RP2040_CLOCKS_CLK_SYS_RESUS_CTRL_CLEAR               (1 << 16)  /* For clearing the resus after the fault that triggered it has been corrected */
 #define RP2040_CLOCKS_CLK_SYS_RESUS_CTRL_FRCE                (1 << 12)  /* Force a resus, for test purposes only */
-#define RP2040_CLOCKS_CLK_SYS_RESUS_CTRL_ENABLE              (1 << 8)  /* Enable resus */
-#define RP2040_CLOCKS_CLK_SYS_RESUS_CTRL_TIMEOUT_MASK        (0xff)  /* This is expressed as a number of clk_ref cycles and must be >= 2x clk_ref_freq/min_clk_tst_freq */
+#define RP2040_CLOCKS_CLK_SYS_RESUS_CTRL_ENABLE              (1 << 8)   /* Enable resus */
+#define RP2040_CLOCKS_CLK_SYS_RESUS_CTRL_TIMEOUT_MASK        (0xff)     /* This is expressed as a number of clk_ref cycles and must be >= 2x clk_ref_freq/min_clk_tst_freq */
 
-#define RP2040_CLOCKS_CLK_SYS_RESUS_STATUS_RESUSSED          (1 << 0)  /* Clock has been resuscitated, correct the error then send ctrl_clear=1 */
+#define RP2040_CLOCKS_CLK_SYS_RESUS_STATUS_RESUSSED          (1 << 0)   /* Clock has been resuscitated, correct the error then send ctrl_clear=1 */
 
 #define RP2040_CLOCKS_FC0_REF_KHZ_MASK                       (0xfffff)
 
@@ -361,9 +361,9 @@
 #define RP2040_CLOCKS_FC0_STATUS_SLOW                        (1 << 20)  /* Test clock slower than expected, only valid when status_done=1 */
 #define RP2040_CLOCKS_FC0_STATUS_FAIL                        (1 << 16)  /* Test failed */
 #define RP2040_CLOCKS_FC0_STATUS_WAITING                     (1 << 12)  /* Waiting for test clock to start */
-#define RP2040_CLOCKS_FC0_STATUS_RUNNING                     (1 << 8)  /* Test running */
-#define RP2040_CLOCKS_FC0_STATUS_DONE                        (1 << 4)  /* Test complete */
-#define RP2040_CLOCKS_FC0_STATUS_PASS                        (1 << 0)  /* Test passed */
+#define RP2040_CLOCKS_FC0_STATUS_RUNNING                     (1 << 8)   /* Test running */
+#define RP2040_CLOCKS_FC0_STATUS_DONE                        (1 << 4)   /* Test complete */
+#define RP2040_CLOCKS_FC0_STATUS_PASS                        (1 << 0)   /* Test passed */
 
 #define RP2040_CLOCKS_FC0_RESULT_KHZ_SHIFT                   (5)
 #define RP2040_CLOCKS_FC0_RESULT_KHZ_MASK                    (0x1ffffff << RP2040_CLOCKS_FC0_RESULT_KHZ_SHIFT)

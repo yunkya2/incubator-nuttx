@@ -69,7 +69,7 @@
 #define RP2040_XOSC_STATUS_FREQ_RANGE_RESERVED_3  (0x3)
 
 #define RP2040_XOSC_STARTUP_X4                    (1 << 20)  /* Multiplies the startup_delay by 4. This is of little value to the user given that the delay can be programmed directly */
-#define RP2040_XOSC_STARTUP_DELAY_MASK            (0x3fff)  /* in multiples of 256*xtal_period */
+#define RP2040_XOSC_STARTUP_DELAY_MASK            (0x3fff)   /* in multiples of 256*xtal_period */
 
 #define RP2040_XOSC_COUNT_MASK                    (0xff)
 

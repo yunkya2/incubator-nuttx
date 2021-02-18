@@ -63,11 +63,11 @@
 
 /* Register bit definitions *************************************************/
 
-#define RP2040_WATCHDOG_CTRL_TRIGGER      (1 << 31)  /* Trigger a watchdog reset */
-#define RP2040_WATCHDOG_CTRL_ENABLE       (1 << 30)  /* When not enabled the watchdog timer is paused */
-#define RP2040_WATCHDOG_CTRL_PAUSE_DBG1   (1 << 26)  /* Pause the watchdog timer when processor 1 is in debug mode */
-#define RP2040_WATCHDOG_CTRL_PAUSE_DBG0   (1 << 25)  /* Pause the watchdog timer when processor 0 is in debug mode */
-#define RP2040_WATCHDOG_CTRL_PAUSE_JTAG   (1 << 24)  /* Pause the watchdog timer when JTAG is accessing the bus fabric */
+#define RP2040_WATCHDOG_CTRL_TRIGGER      (1 << 31)   /* Trigger a watchdog reset */
+#define RP2040_WATCHDOG_CTRL_ENABLE       (1 << 30)   /* When not enabled the watchdog timer is paused */
+#define RP2040_WATCHDOG_CTRL_PAUSE_DBG1   (1 << 26)   /* Pause the watchdog timer when processor 1 is in debug mode */
+#define RP2040_WATCHDOG_CTRL_PAUSE_DBG0   (1 << 25)   /* Pause the watchdog timer when processor 0 is in debug mode */
+#define RP2040_WATCHDOG_CTRL_PAUSE_JTAG   (1 << 24)   /* Pause the watchdog timer when JTAG is accessing the bus fabric */
 #define RP2040_WATCHDOG_CTRL_TIME_MASK    (0xffffff)  /* Indicates the number of ticks / 2 (see errata RP2040-E1) before a watchdog reset will be triggered */
 
 #define RP2040_WATCHDOG_LOAD_MASK         (0xffffff)
@@ -75,10 +75,10 @@
 #define RP2040_WATCHDOG_REASON_FORCE      (1 << 1)
 #define RP2040_WATCHDOG_REASON_TIMER      (1 << 0)
 
-#define RP2040_WATCHDOG_TICK_COUNT_SHIFT  (11)  /* Count down timer: the remaining number clk_tick cycles before the next tick is generated. */
+#define RP2040_WATCHDOG_TICK_COUNT_SHIFT  (11)       /* Count down timer: the remaining number clk_tick cycles before the next tick is generated. */
 #define RP2040_WATCHDOG_TICK_COUNT_MASK   (0x1ff << RP2040_WATCHDOG_TICK_COUNT_SHIFT)
 #define RP2040_WATCHDOG_TICK_RUNNING      (1 << 10)  /* Is the tick generator running? */
-#define RP2040_WATCHDOG_TICK_ENABLE       (1 << 9)  /* start / stop tick generation */
-#define RP2040_WATCHDOG_TICK_CYCLES_MASK  (0x1ff)  /* Total number of clk_tick cycles before the next tick. */
+#define RP2040_WATCHDOG_TICK_ENABLE       (1 << 9)   /* start / stop tick generation */
+#define RP2040_WATCHDOG_TICK_CYCLES_MASK  (0x1ff)    /* Total number of clk_tick cycles before the next tick. */
 
 #endif /* __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_WATCHDOG_H */
