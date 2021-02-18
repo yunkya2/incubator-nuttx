@@ -40,7 +40,6 @@
 #include "rp2040_xosc.h"
 #include "rp2040_pll.h"
 #include "hardware/rp2040_clocks.h"
-
 #include "hardware/rp2040_resets.h"
 #include "hardware/rp2040_watchdog.h"
 
@@ -79,7 +78,9 @@ bool rp2040_clock_configure(int clk_index,
       return false;
     }
 
-  /* Div register is 24.8 int.frac divider so multiply by 2^8 (left shift by 8) */
+  /* Div register is 24.8 int.frac divider so multiply by 2^8
+   * (left shift by 8)
+   */
 
   div = (uint32_t) (((uint64_t) src_freq << 8) / freq);
 
@@ -96,8 +97,9 @@ bool rp2040_clock_configure(int clk_index,
   if (has_glitchless_mux(clk_index) &&
       src == RP2040_CLOCKS_CLK_SYS_CTRL_SRC_CLKSRC_CLK_SYS_AUX)
     {
-      /* If switching a glitchless slice (ref or sys) to an aux source, switch
-       * away from aux *first* to avoid passing glitches when changing aux mux.
+      /* If switching a glitchless slice (ref or sys) to an aux source,
+       * switch away from aux *first* to avoid passing glitches when
+       * changing aux mux.
        * Assume (!!!) glitchless source 0 is no faster than the aux source.
        */
 
@@ -109,8 +111,8 @@ bool rp2040_clock_configure(int clk_index,
   else
     {
       /* If no glitchless mux, cleanly stop the clock to avoid glitches
-       * propagating when changing aux mux. Note it would be a really bad idea
-       * to do this on one of the glitchless clocks (clk_sys, clk_ref).
+       * propagating when changing aux mux. Note it would be a really bad
+       * idea to do this on one of the glitchless clocks (clk_sys, clk_ref).
        */
 
       clrbits_reg32(RP2040_CLOCKS_CLK_GPOUT0_CTRL_ENABLE,
@@ -169,7 +171,8 @@ void clocks_init(void)
 {
   /* Start tick in watchdog */
 
-  putreg32((BOARD_XOSC_FREQ / MHZ) | RP2040_WATCHDOG_TICK_ENABLE, RP2040_WATCHDOG_TICK);
+  putreg32((BOARD_XOSC_FREQ / MHZ) | RP2040_WATCHDOG_TICK_ENABLE,
+           RP2040_WATCHDOG_TICK);
 
   /* Disable resus that may be enabled from previous software */
 
@@ -179,12 +182,16 @@ void clocks_init(void)
 
   rp2040_xosc_init();
 
-  /* Before we touch PLLs, switch sys and ref cleanly away from their aux sources. */
+  /* Before we touch PLLs, switch sys and ref cleanly away from their
+   * aux sources.
+   */
 
-  clrbits_reg32(RP2040_CLOCKS_CLK_SYS_CTRL_SRC, RP2040_CLOCKS_CLK_SYS_CTRL);
+  clrbits_reg32(RP2040_CLOCKS_CLK_SYS_CTRL_SRC,
+                RP2040_CLOCKS_CLK_SYS_CTRL);
   while (getreg32(RP2040_CLOCKS_CLK_SYS_SELECTED) != 1)
     ;
-  clrbits_reg32(RP2040_CLOCKS_CLK_REF_CTRL_SRC_MASK, RP2040_CLOCKS_CLK_REF_CTRL);
+  clrbits_reg32(RP2040_CLOCKS_CLK_REF_CTRL_SRC_MASK,
+                RP2040_CLOCKS_CLK_REF_CTRL);
   while (getreg32(RP2040_CLOCKS_CLK_REF_SELECTED) != 1)
     ;
 
@@ -194,12 +201,12 @@ void clocks_init(void)
    * PLL USB: 12 / 1 = 12MHz * 40  = 480 MHz / 5 / 2 =  48MHz
    */
 
-  setbits_reg32(RP2040_RESETS_RESET_pll_sys | RP2040_RESETS_RESET_pll_usb,
+  setbits_reg32(RP2040_RESETS_RESET_PLL_SYS | RP2040_RESETS_RESET_PLL_USB,
                 RP2040_RESETS_RESET);
-  clrbits_reg32(RP2040_RESETS_RESET_pll_sys | RP2040_RESETS_RESET_pll_usb,
+  clrbits_reg32(RP2040_RESETS_RESET_PLL_SYS | RP2040_RESETS_RESET_PLL_USB,
                 RP2040_RESETS_RESET);
   while (~getreg32(RP2040_RESETS_RESET_DONE) &
-         (RP2040_RESETS_RESET_pll_sys | RP2040_RESETS_RESET_pll_usb))
+         (RP2040_RESETS_RESET_PLL_SYS | RP2040_RESETS_RESET_PLL_USB))
     ;
 
   rp2040_pll_init(RP2040_PLL_SYS_BASE, 1, 1500 * MHZ, 6, 2);
@@ -277,37 +284,39 @@ void clocks_init(void)
 void rp2040_clockconfig(void)
 {
   /* Reset all peripherals to put system into a known state,
-   * - except for QSPI pads and the XIP IO bank, as this is fatal if running from flash
-   * - and the PLLs, as this is fatal if clock muxing has not been reset on this boot
+   * - except for QSPI pads and the XIP IO bank, as this is fatal if running
+   *   from flash
+   * - and the PLLs, as this is fatal if clock muxing has not been reset on
+   *   this boot
    */
 
-  setbits_reg32(RESETS_RESET_BITS & ~(RP2040_RESETS_RESET_io_qspi |
-                                      RP2040_RESETS_RESET_pads_qspi |
-                                      RP2040_RESETS_RESET_pll_usb |
-                                      RP2040_RESETS_RESET_pll_sys),
+  setbits_reg32(RESETS_RESET_BITS & ~(RP2040_RESETS_RESET_IO_QSPI |
+                                      RP2040_RESETS_RESET_PADS_QSPI |
+                                      RP2040_RESETS_RESET_PLL_USB |
+                                      RP2040_RESETS_RESET_PLL_SYS),
                 RP2040_RESETS_RESET);
 
   /* Remove reset from peripherals which are clocked only by clk_sys and
    * clk_ref. Other peripherals stay in reset until we've configured clocks.
    */
 
-  clrbits_reg32(RESETS_RESET_BITS & ~(RP2040_RESETS_RESET_adc |
-                                      RP2040_RESETS_RESET_rtc |
-                                      RP2040_RESETS_RESET_spi0 |
-                                      RP2040_RESETS_RESET_spi1 |
-                                      RP2040_RESETS_RESET_uart0 |
-                                      RP2040_RESETS_RESET_uart1 |
-                                      RP2040_RESETS_RESET_usbctrl),
+  clrbits_reg32(RESETS_RESET_BITS & ~(RP2040_RESETS_RESET_ADC |
+                                      RP2040_RESETS_RESET_RTC |
+                                      RP2040_RESETS_RESET_SPI0 |
+                                      RP2040_RESETS_RESET_SPI1 |
+                                      RP2040_RESETS_RESET_UART0 |
+                                      RP2040_RESETS_RESET_UART1 |
+                                      RP2040_RESETS_RESET_USBCTRL),
                 RP2040_RESETS_RESET);
 
   while (~getreg32(RP2040_RESETS_RESET_DONE) &
-         (RESETS_RESET_BITS & ~(RP2040_RESETS_RESET_adc |
-                                RP2040_RESETS_RESET_rtc |
-                                RP2040_RESETS_RESET_spi0 |
-                                RP2040_RESETS_RESET_spi1 |
-                                RP2040_RESETS_RESET_uart0 |
-                                RP2040_RESETS_RESET_uart1 |
-                                RP2040_RESETS_RESET_usbctrl)))
+         (RESETS_RESET_BITS & ~(RP2040_RESETS_RESET_ADC |
+                                RP2040_RESETS_RESET_RTC |
+                                RP2040_RESETS_RESET_SPI0 |
+                                RP2040_RESETS_RESET_SPI1 |
+                                RP2040_RESETS_RESET_UART0 |
+                                RP2040_RESETS_RESET_UART1 |
+                                RP2040_RESETS_RESET_USBCTRL)))
     ;
 
   /* After calling preinit we have enough runtime to do the exciting maths
@@ -321,13 +330,4 @@ void rp2040_clockconfig(void)
   clrbits_reg32(RESETS_RESET_BITS, RP2040_RESETS_RESET);
   while (~getreg32(RP2040_RESETS_RESET_DONE) & RESETS_RESET_BITS)
     ;
-
-#if 0
-#if !PICO_IE_26_29_UNCHANGED_ON_RESET
-  /* after resetting BANK0 we should disable IE on 26-29 */
-
-  hw_clear_alias(padsbank0_hw)->io[26] = hw_clear_alias(padsbank0_hw)->io[27] =
-  hw_clear_alias(padsbank0_hw)->io[28] = hw_clear_alias(padsbank0_hw)->io[29] = PADS_BANK0_GPIO0_IE_BITS;
-#endif
-#endif
 }
