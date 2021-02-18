@@ -187,7 +187,7 @@ bool rp2040_clock_configure(uint32_t clk_index,
 
 void clocks_init(void) {
     // Start tick in watchdog
-    putreg32(BOARD_XOSC_FREQ | RP2040_WATCHDOG_TICK_ENABLE, RP2040_WATCHDOG_TICK);
+    putreg32((BOARD_XOSC_FREQ / MHZ) | RP2040_WATCHDOG_TICK_ENABLE, RP2040_WATCHDOG_TICK);
 
     // Disable resus that may be enabled from previous software
     putreg32(0, RP2040_CLOCKS_CLK_SYS_RESUS_CTRL);
