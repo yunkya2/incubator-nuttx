@@ -47,7 +47,7 @@
 
 /* Register bit definitions *************************************************/
 
-#define RP2040_PADS_BANK0_VOLTAGE_SELECT      (1 << 0)  /* Set voltage to 1.8V (DVDD <= 1V8) */
+#define RP2040_PADS_BANK0_VOLTAGE_SELECT_1_8V (1 << 0)  /* Set voltage to 1.8V (DVDD <= 1V8) */
 
 #define RP2040_PADS_BANK0_GPIO_OD             (1 << 7)  /* Output disable. Has priority over output enable from peripherals */
 #define RP2040_PADS_BANK0_GPIO_IE             (1 << 6)  /* Input enable */
