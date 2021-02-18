@@ -29,6 +29,7 @@
 #include <debug.h>
 
 #include <nuttx/init.h>
+#include <arch/board/board.h>
 
 #include "arm_arch.h"
 #include "arm_internal.h"
@@ -36,8 +37,6 @@
 #include "rp2040_config.h"
 #include "rp2040_clock.h"
 #include "rp2040_uart.h"
-#include "rp2040_gpio.h"
-#include "rp2040_start.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -101,7 +100,7 @@ void __start(void)
   /* Configure the uart so that we can get debug output as soon as possible */
 
   rp2040_clockconfig();
-  rp2040_gpioinit();
+  rp2040_boardearlyinitialize();
   rp2040_lowsetup();
   showprogress('A');
 
