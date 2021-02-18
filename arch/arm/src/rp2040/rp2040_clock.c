@@ -41,38 +41,24 @@
 #include "rp2040_pll.h"
 #include "hardware/rp2040_clocks.h"
 
+#include "hardware/rp2040_resets.h"
+#include "hardware/rp2040_watchdog.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#define RESETS_RESET_BITS   0x01ffffff
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static uint32_t rp2040_clock_freq[RP2040_CLOCKS_NDX_MAX];
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-
-#include "hardware/rp2040_resets.h"
-#include "hardware/rp2040_watchdog.h"
-#define RESETS_RESET_BITS   0x01ffffff
-
-
-
-/************************************************************************************
- * Name: rp2040_clockconfig
- *
- * Description:
- *   Called to establish the clock settings based on the values in board.h.
- *
- * Input Parameters:
- *   None
- *
- * Returned Value:
- *   None
- *
- ************************************************************************************/
-
-
-
-static uint32_t rp2040_clock_freq[RP2040_CLOCKS_NDX_MAX];
 
 static inline bool has_glitchless_mux(int clk_index)
 {
@@ -225,7 +211,7 @@ void clocks_init(void)
 
   rp2040_clock_configure(RP2040_CLOCKS_NDX_REF,
                          RP2040_CLOCKS_CLK_REF_CTRL_SRC_XOSC_CLKSRC,
-                         0, // No aux mux
+                         0,
                          BOARD_XOSC_FREQ,
                          BOARD_REF_FREQ);
 
@@ -240,7 +226,7 @@ void clocks_init(void)
   /* CLK USB = PLL USB (48MHz) / 1 = 48MHz */
 
   rp2040_clock_configure(RP2040_CLOCKS_NDX_USB,
-                         0, // No GLMUX
+                         0,
                          RP2040_CLOCKS_CLK_USB_CTRL_AUXSRC_CLKSRC_PLL_USB,
                          BOARD_PLL_USB_FREQ,
                          BOARD_USB_FREQ);
@@ -248,7 +234,7 @@ void clocks_init(void)
   /* CLK ADC = PLL USB (48MHZ) / 1 = 48MHz */
 
   rp2040_clock_configure(RP2040_CLOCKS_NDX_ADC,
-                         0, // No GLMUX
+                         0,
                          RP2040_CLOCKS_CLK_ADC_CTRL_AUXSRC_CLKSRC_PLL_USB,
                          BOARD_PLL_USB_FREQ,
                          BOARD_ADC_FREQ);
@@ -256,7 +242,7 @@ void clocks_init(void)
   /* CLK RTC = PLL USB (48MHz) / 1024 = 46875Hz */
 
   rp2040_clock_configure(RP2040_CLOCKS_NDX_RTC,
-                         0, // No GLMUX
+                         0,
                          RP2040_CLOCKS_CLK_RTC_CTRL_AUXSRC_CLKSRC_PLL_USB,
                          BOARD_PLL_USB_FREQ,
                          BOARD_RTC_FREQ);
@@ -270,111 +256,78 @@ void clocks_init(void)
                          BOARD_PERI_FREQ);
 }
 
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
 
-void runtime_init(void)
-{
-    // Reset all peripherals to put system into a known state,
-    // - except for QSPI pads and the XIP IO bank, as this is fatal if running from flash
-    // - and the PLLs, as this is fatal if clock muxing has not been reset on this boot
-
-    setbits_reg32(RESETS_RESET_BITS &
-        ~(RP2040_RESETS_RESET_io_qspi |
-          RP2040_RESETS_RESET_pads_qspi |
-          RP2040_RESETS_RESET_pll_usb |
-          RP2040_RESETS_RESET_pll_sys), RP2040_RESETS_RESET);
-
-    // Remove reset from peripherals which are clocked only by clk_sys and
-    // clk_ref. Other peripherals stay in reset until we've configured clocks.
-
-    clrbits_reg32(RESETS_RESET_BITS &
-        ~(RP2040_RESETS_RESET_adc |
-          RP2040_RESETS_RESET_rtc |
-          RP2040_RESETS_RESET_spi0 |
-          RP2040_RESETS_RESET_spi1 |
-          RP2040_RESETS_RESET_uart0 |
-          RP2040_RESETS_RESET_uart1 |
-          RP2040_RESETS_RESET_usbctrl), RP2040_RESETS_RESET);
-    while (~getreg32(RP2040_RESETS_RESET_DONE) &
-        (RESETS_RESET_BITS &
-        ~(RP2040_RESETS_RESET_adc |
-          RP2040_RESETS_RESET_rtc |
-          RP2040_RESETS_RESET_spi0 |
-          RP2040_RESETS_RESET_spi1 |
-          RP2040_RESETS_RESET_uart0 |
-          RP2040_RESETS_RESET_uart1 |
-          RP2040_RESETS_RESET_usbctrl)))
-        ;
-
-    // After calling preinit we have enough runtime to do the exciting maths
-    // in clocks_init
-    clocks_init();
-
-    // Peripheral clocks should now all be running
-    clrbits_reg32(RESETS_RESET_BITS, RP2040_RESETS_RESET);
-    while (~getreg32(RP2040_RESETS_RESET_DONE) & RESETS_RESET_BITS)
-        ;
-
-#if 0
-#if !PICO_IE_26_29_UNCHANGED_ON_RESET
-    // after resetting BANK0 we should disable IE on 26-29
-    hw_clear_alias(padsbank0_hw)->io[26] = hw_clear_alias(padsbank0_hw)->io[27] =
-            hw_clear_alias(padsbank0_hw)->io[28] = hw_clear_alias(padsbank0_hw)->io[29] = PADS_BANK0_GPIO0_IE_BITS;
-#endif
-#endif
-}
-
-#include "hardware/rp2040_pads_bank0.h"
-#include "hardware/rp2040_io_bank0.h"
-#include "hardware/rp2040_sio.h"
+/****************************************************************************
+ * Name: rp2040_clockconfig
+ *
+ * Description:
+ *   Called to establish the clock settings based on the values in board.h.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
 
 void rp2040_clockconfig(void)
 {
-  int i;
+  /* Reset all peripherals to put system into a known state,
+   * - except for QSPI pads and the XIP IO bank, as this is fatal if running from flash
+   * - and the PLLs, as this is fatal if clock muxing has not been reset on this boot
+   */
 
-  for (i = 0; i < RP2040_CLOCKS_NDX_MAX; i++)
-    {
-      rp2040_clock_freq[i] = 0;
-    }
+  setbits_reg32(RESETS_RESET_BITS & ~(RP2040_RESETS_RESET_io_qspi |
+                                      RP2040_RESETS_RESET_pads_qspi |
+                                      RP2040_RESETS_RESET_pll_usb |
+                                      RP2040_RESETS_RESET_pll_sys),
+                RP2040_RESETS_RESET);
 
-  runtime_init();
+  /* Remove reset from peripherals which are clocked only by clk_sys and
+   * clk_ref. Other peripherals stay in reset until we've configured clocks.
+   */
 
-  modbits_reg32(RP2040_PADS_BANK0_GPIO0_IE,
-                RP2040_PADS_BANK0_GPIO0_IE | RP2040_PADS_BANK0_GPIO0_OD,
-                RP2040_PADS_BANK0_GPIO0);
+  clrbits_reg32(RESETS_RESET_BITS & ~(RP2040_RESETS_RESET_adc |
+                                      RP2040_RESETS_RESET_rtc |
+                                      RP2040_RESETS_RESET_spi0 |
+                                      RP2040_RESETS_RESET_spi1 |
+                                      RP2040_RESETS_RESET_uart0 |
+                                      RP2040_RESETS_RESET_uart1 |
+                                      RP2040_RESETS_RESET_usbctrl),
+                RP2040_RESETS_RESET);
 
-  putreg32(RP2040_IO_BANK0_GPIO0_CTRL_FUNCSEL_UART0_TX,
-           RP2040_IO_BANK0_GPIO0_CTRL);
+  while (~getreg32(RP2040_RESETS_RESET_DONE) &
+         (RESETS_RESET_BITS & ~(RP2040_RESETS_RESET_adc |
+                                RP2040_RESETS_RESET_rtc |
+                                RP2040_RESETS_RESET_spi0 |
+                                RP2040_RESETS_RESET_spi1 |
+                                RP2040_RESETS_RESET_uart0 |
+                                RP2040_RESETS_RESET_uart1 |
+                                RP2040_RESETS_RESET_usbctrl)))
+    ;
 
-  modbits_reg32(RP2040_PADS_BANK0_GPIO1_IE,
-                RP2040_PADS_BANK0_GPIO1_IE | RP2040_PADS_BANK0_GPIO1_OD,
-                RP2040_PADS_BANK0_GPIO1);
+  /* After calling preinit we have enough runtime to do the exciting maths
+   * in clocks_init
+   */
 
-  putreg32(RP2040_IO_BANK0_GPIO1_CTRL_FUNCSEL_UART0_RX,
-           RP2040_IO_BANK0_GPIO1_CTRL);
+  clocks_init();
 
-  setbits_reg32(RP2040_RESETS_RESET_uart0, RP2040_RESETS_RESET);
-  clrbits_reg32(RP2040_RESETS_RESET_uart0, RP2040_RESETS_RESET);
-  while (~getreg32(RP2040_RESETS_RESET_DONE) & RP2040_RESETS_RESET_uart0)
+  /* Peripheral clocks should now all be running */
+
+  clrbits_reg32(RESETS_RESET_BITS, RP2040_RESETS_RESET);
+  while (~getreg32(RP2040_RESETS_RESET_DONE) & RESETS_RESET_BITS)
     ;
 
 #if 0
-    putreg32(RP2040_IO_BANK0_GPIO25_CTRL_FUNCSEL_SIO_25,
-             RP2040_IO_BANK0_GPIO25_CTRL);
-    putreg32(1 << 25, RP2040_SIO_GPIO_OE_SET);
-    putreg32(1 << 25, RP2040_SIO_GPIO_OUT_SET);
-    putreg32(1 << 25, RP2040_SIO_GPIO_OUT_CLR);
-    putreg32(1 << 25, RP2040_SIO_GPIO_OUT_SET);
-    putreg32(1 << 25, RP2040_SIO_GPIO_OUT_CLR);
-    putreg32(1 << 25, RP2040_SIO_GPIO_OUT_SET);
+#if !PICO_IE_26_29_UNCHANGED_ON_RESET
+  /* after resetting BANK0 we should disable IE on 26-29 */
 
-    {
-        int i;
-        while (1) {
-            putreg32(1 << 25, RP2040_SIO_GPIO_OUT_XOR);
-            for (i = 0; i < 125000000 / 5; i++) {
-                __asm__ volatile("nop");
-            }
-        }
-    }
+  hw_clear_alias(padsbank0_hw)->io[26] = hw_clear_alias(padsbank0_hw)->io[27] =
+  hw_clear_alias(padsbank0_hw)->io[28] = hw_clear_alias(padsbank0_hw)->io[29] = PADS_BANK0_GPIO0_IE_BITS;
+#endif
 #endif
 }

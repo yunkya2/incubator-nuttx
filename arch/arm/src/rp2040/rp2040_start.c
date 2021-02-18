@@ -36,6 +36,7 @@
 #include "rp2040_config.h"
 #include "rp2040_clock.h"
 #include "rp2040_uart.h"
+#include "rp2040_gpio.h"
 #include "rp2040_start.h"
 
 /****************************************************************************
@@ -88,12 +89,6 @@ void __start(void)
 #endif
   uint32_t *dest;
 
-  /* Configure the uart so that we can get debug output as soon as possible */
-
-  rp2040_clockconfig();
-  rp2040_lowsetup();
-  showprogress('A');
-
   /* Clear .bss.  We'll do this inline (vs. calling memset) just to be
    * certain that there are no issues with the state of global variables.
    */
@@ -103,7 +98,12 @@ void __start(void)
       *dest++ = 0;
     }
 
-  showprogress('B');
+  /* Configure the uart so that we can get debug output as soon as possible */
+
+  rp2040_clockconfig();
+  rp2040_gpioinit();
+  rp2040_lowsetup();
+  showprogress('A');
 
   /* Move the initialized data section from his temporary holding spot in
    * FLASH into the correct place in SRAM.  The correct place in SRAM is
@@ -118,14 +118,14 @@ void __start(void)
     }
 #endif
 
-  showprogress('C');
+  showprogress('B');
 
   /* Perform early serial initialization */
 
 #ifdef USE_EARLYSERIALINIT
   arm_earlyserialinit();
 #endif
-  showprogress('D');
+  showprogress('C');
 
   /* For the case of the separate user-/kernel-space build, perform whatever
    * platform specific initialization of the user memory is required.
@@ -135,13 +135,13 @@ void __start(void)
 
 #ifdef CONFIG_BUILD_PROTECTED
   rp2040_userspace();
-  showprogress('E');
+  showprogress('D');
 #endif
 
   /* Initialize onboard resources */
 
   rp2040_boardinitialize();
-  showprogress('F');
+  showprogress('E');
 
   /* Then start NuttX */
 
