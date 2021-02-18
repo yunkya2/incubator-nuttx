@@ -21,53 +21,40 @@
 #ifndef __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_CLOCKS_H
 #define __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_CLOCKS_H
 
-/********************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************/
+ ****************************************************************************/
 
 #include "hardware/rp2040_memorymap.h"
 
-/********************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************/
+ ****************************************************************************/
+
+/* Clock index **************************************************************/
+
+#define RP2040_CLOCKS_NDX_GPOUT0    0   /* Clock output to GPIO 21 */
+#define RP2040_CLOCKS_NDX_GPOUT1    1   /* Clock output to GPIO 23 */
+#define RP2040_CLOCKS_NDX_GPOUT2    2   /* Clock output to GPIO 24 */
+#define RP2040_CLOCKS_NDX_GPOUT3    3   /* Clock output to GPIO 25 */
+#define RP2040_CLOCKS_NDX_REF       4   /* Reference clock */
+#define RP2040_CLOCKS_NDX_SYS       5   /* System clock */
+#define RP2040_CLOCKS_NDX_PERI      6   /* Peripheral clock */
+#define RP2040_CLOCKS_NDX_USB       7   /* USB clock */
+#define RP2040_CLOCKS_NDX_ADC       8   /* ADC clock */
+#define RP2040_CLOCKS_NDX_RTC       9   /* RTC clock */
+#define RP2040_CLOCKS_NDX_MAX       10
 
 /* Register offsets *********************************************************/
 
-#define RP2040_CLOCKS_CLK_CTRL_OFFSET              0x000000  /* Clock control, can be changed on-the-fly (except for auxsrc) */
-#define RP2040_CLOCKS_CLK_DIV_OFFSET               0x000004  /* Clock divisor, can be changed on-the-fly */
-#define RP2040_CLOCKS_CLK_SELECTED_OFFSET          0x000008  /* Indicates which src is currently selected (one-hot) */
+#define RP2040_CLOCKS_CLK_CTRL_OFFSET              0x000000  /* Clock control */
+#define RP2040_CLOCKS_CLK_DIV_OFFSET               0x000004  /* Clock divisor */
+#define RP2040_CLOCKS_CLK_SELECTED_OFFSET          0x000008  /* Indicates which src is currently selected */
 
+#define RP2040_CLOCKS_CLK_NDX_CTRL_OFFSET(n)        ((n) * 12 + RP2040_CLOCKS_CLK_CTRL_OFFSET)
+#define RP2040_CLOCKS_CLK_NDX_DIV_OFFSET(n)         ((n) * 12 + RP2040_CLOCKS_CLK_DIV_OFFSET)
+#define RP2040_CLOCKS_CLK_NDX_SELECTED_OFFSET(n)    ((n) * 12 + RP2040_CLOCKS_CLK_SELECTED_OFFSET)
 
-
-#define RP2040_CLOCKS_CLK_GPOUT0_CTRL_OFFSET       0x000000  /* Clock control, can be changed on-the-fly (except for auxsrc) */
-#define RP2040_CLOCKS_CLK_GPOUT0_DIV_OFFSET        0x000004  /* Clock divisor, can be changed on-the-fly */
-#define RP2040_CLOCKS_CLK_GPOUT0_SELECTED_OFFSET   0x000008  /* Indicates which src is currently selected (one-hot) */
-#define RP2040_CLOCKS_CLK_GPOUT1_CTRL_OFFSET       0x00000c  /* Clock control, can be changed on-the-fly (except for auxsrc) */
-#define RP2040_CLOCKS_CLK_GPOUT1_DIV_OFFSET        0x000010  /* Clock divisor, can be changed on-the-fly */
-#define RP2040_CLOCKS_CLK_GPOUT1_SELECTED_OFFSET   0x000014  /* Indicates which src is currently selected (one-hot) */
-#define RP2040_CLOCKS_CLK_GPOUT2_CTRL_OFFSET       0x000018  /* Clock control, can be changed on-the-fly (except for auxsrc) */
-#define RP2040_CLOCKS_CLK_GPOUT2_DIV_OFFSET        0x00001c  /* Clock divisor, can be changed on-the-fly */
-#define RP2040_CLOCKS_CLK_GPOUT2_SELECTED_OFFSET   0x000020  /* Indicates which src is currently selected (one-hot) */
-#define RP2040_CLOCKS_CLK_GPOUT3_CTRL_OFFSET       0x000024  /* Clock control, can be changed on-the-fly (except for auxsrc) */
-#define RP2040_CLOCKS_CLK_GPOUT3_DIV_OFFSET        0x000028  /* Clock divisor, can be changed on-the-fly */
-#define RP2040_CLOCKS_CLK_GPOUT3_SELECTED_OFFSET   0x00002c  /* Indicates which src is currently selected (one-hot) */
-#define RP2040_CLOCKS_CLK_REF_CTRL_OFFSET          0x000030  /* Clock control, can be changed on-the-fly (except for auxsrc) */
-#define RP2040_CLOCKS_CLK_REF_DIV_OFFSET           0x000034  /* Clock divisor, can be changed on-the-fly */
-#define RP2040_CLOCKS_CLK_REF_SELECTED_OFFSET      0x000038  /* Indicates which src is currently selected (one-hot) */
-#define RP2040_CLOCKS_CLK_SYS_CTRL_OFFSET          0x00003c  /* Clock control, can be changed on-the-fly (except for auxsrc) */
-#define RP2040_CLOCKS_CLK_SYS_DIV_OFFSET           0x000040  /* Clock divisor, can be changed on-the-fly */
-#define RP2040_CLOCKS_CLK_SYS_SELECTED_OFFSET      0x000044  /* Indicates which src is currently selected (one-hot) */
-#define RP2040_CLOCKS_CLK_PERI_CTRL_OFFSET         0x000048  /* Clock control, can be changed on-the-fly (except for auxsrc) */
-#define RP2040_CLOCKS_CLK_PERI_SELECTED_OFFSET     0x000050  /* Indicates which src is currently selected (one-hot) */
-#define RP2040_CLOCKS_CLK_USB_CTRL_OFFSET          0x000054  /* Clock control, can be changed on-the-fly (except for auxsrc) */
-#define RP2040_CLOCKS_CLK_USB_DIV_OFFSET           0x000058  /* Clock divisor, can be changed on-the-fly */
-#define RP2040_CLOCKS_CLK_USB_SELECTED_OFFSET      0x00005c  /* Indicates which src is currently selected (one-hot) */
-#define RP2040_CLOCKS_CLK_ADC_CTRL_OFFSET          0x000060  /* Clock control, can be changed on-the-fly (except for auxsrc) */
-#define RP2040_CLOCKS_CLK_ADC_DIV_OFFSET           0x000064  /* Clock divisor, can be changed on-the-fly */
-#define RP2040_CLOCKS_CLK_ADC_SELECTED_OFFSET      0x000068  /* Indicates which src is currently selected (one-hot) */
-#define RP2040_CLOCKS_CLK_RTC_CTRL_OFFSET          0x00006c  /* Clock control, can be changed on-the-fly (except for auxsrc) */
-#define RP2040_CLOCKS_CLK_RTC_DIV_OFFSET           0x000070  /* Clock divisor, can be changed on-the-fly */
-#define RP2040_CLOCKS_CLK_RTC_SELECTED_OFFSET      0x000074  /* Indicates which src is currently selected (one-hot) */
 #define RP2040_CLOCKS_CLK_SYS_RESUS_CTRL_OFFSET    0x000078
 #define RP2040_CLOCKS_CLK_SYS_RESUS_STATUS_OFFSET  0x00007c
 #define RP2040_CLOCKS_FC0_REF_KHZ_OFFSET           0x000080  /* Reference clock frequency in kHz */
@@ -91,35 +78,40 @@
 
 /* Register definitions *****************************************************/
 
-#define RP2040_CLOCKS_CLK_GPOUT0_CTRL       (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_GPOUT0_CTRL_OFFSET)
-#define RP2040_CLOCKS_CLK_GPOUT0_DIV        (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_GPOUT0_DIV_OFFSET)
-#define RP2040_CLOCKS_CLK_GPOUT0_SELECTED   (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_GPOUT0_SELECTED_OFFSET)
-#define RP2040_CLOCKS_CLK_GPOUT1_CTRL       (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_GPOUT1_CTRL_OFFSET)
-#define RP2040_CLOCKS_CLK_GPOUT1_DIV        (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_GPOUT1_DIV_OFFSET)
-#define RP2040_CLOCKS_CLK_GPOUT1_SELECTED   (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_GPOUT1_SELECTED_OFFSET)
-#define RP2040_CLOCKS_CLK_GPOUT2_CTRL       (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_GPOUT2_CTRL_OFFSET)
-#define RP2040_CLOCKS_CLK_GPOUT2_DIV        (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_GPOUT2_DIV_OFFSET)
-#define RP2040_CLOCKS_CLK_GPOUT2_SELECTED   (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_GPOUT2_SELECTED_OFFSET)
-#define RP2040_CLOCKS_CLK_GPOUT3_CTRL       (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_GPOUT3_CTRL_OFFSET)
-#define RP2040_CLOCKS_CLK_GPOUT3_DIV        (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_GPOUT3_DIV_OFFSET)
-#define RP2040_CLOCKS_CLK_GPOUT3_SELECTED   (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_GPOUT3_SELECTED_OFFSET)
-#define RP2040_CLOCKS_CLK_REF_CTRL          (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_REF_CTRL_OFFSET)
-#define RP2040_CLOCKS_CLK_REF_DIV           (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_REF_DIV_OFFSET)
-#define RP2040_CLOCKS_CLK_REF_SELECTED      (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_REF_SELECTED_OFFSET)
-#define RP2040_CLOCKS_CLK_SYS_CTRL          (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_SYS_CTRL_OFFSET)
-#define RP2040_CLOCKS_CLK_SYS_DIV           (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_SYS_DIV_OFFSET)
-#define RP2040_CLOCKS_CLK_SYS_SELECTED      (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_SYS_SELECTED_OFFSET)
-#define RP2040_CLOCKS_CLK_PERI_CTRL         (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_PERI_CTRL_OFFSET)
-#define RP2040_CLOCKS_CLK_PERI_SELECTED     (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_PERI_SELECTED_OFFSET)
-#define RP2040_CLOCKS_CLK_USB_CTRL          (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_USB_CTRL_OFFSET)
-#define RP2040_CLOCKS_CLK_USB_DIV           (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_USB_DIV_OFFSET)
-#define RP2040_CLOCKS_CLK_USB_SELECTED      (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_USB_SELECTED_OFFSET)
-#define RP2040_CLOCKS_CLK_ADC_CTRL          (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_ADC_CTRL_OFFSET)
-#define RP2040_CLOCKS_CLK_ADC_DIV           (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_ADC_DIV_OFFSET)
-#define RP2040_CLOCKS_CLK_ADC_SELECTED      (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_ADC_SELECTED_OFFSET)
-#define RP2040_CLOCKS_CLK_RTC_CTRL          (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_RTC_CTRL_OFFSET)
-#define RP2040_CLOCKS_CLK_RTC_DIV           (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_RTC_DIV_OFFSET)
-#define RP2040_CLOCKS_CLK_RTC_SELECTED      (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_RTC_SELECTED_OFFSET)
+#define RP2040_CLOCKS_CLK_NDX_CTRL(n)       (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_NDX_CTRL_OFFSET(n))
+#define RP2040_CLOCKS_CLK_NDX_DIV(n)        (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_NDX_DIV_OFFSET(n))
+#define RP2040_CLOCKS_CLK_NDX_SELECTED(n)   (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_NDX_SELECTED_OFFSET(n))
+
+#define RP2040_CLOCKS_CLK_GPOUT0_CTRL       (RP2040_CLOCKS_CLK_NDX_CTRL(RP2040_CLOCKS_NDX_GPOUT0))
+#define RP2040_CLOCKS_CLK_GPOUT0_DIV        (RP2040_CLOCKS_CLK_NDX_DIV(RP2040_CLOCKS_NDX_GPOUT0))
+#define RP2040_CLOCKS_CLK_GPOUT0_SELECTED   (RP2040_CLOCKS_CLK_NDX_SELECTED(RP2040_CLOCKS_NDX_GPOUT0))
+#define RP2040_CLOCKS_CLK_GPOUT1_CTRL       (RP2040_CLOCKS_CLK_NDX_CTRL(RP2040_CLOCKS_NDX_GPOUT1))
+#define RP2040_CLOCKS_CLK_GPOUT1_DIV        (RP2040_CLOCKS_CLK_NDX_DIV(RP2040_CLOCKS_NDX_GPOUT1))
+#define RP2040_CLOCKS_CLK_GPOUT1_SELECTED   (RP2040_CLOCKS_CLK_NDX_SELECTED(RP2040_CLOCKS_NDX_GPOUT1))
+#define RP2040_CLOCKS_CLK_GPOUT2_CTRL       (RP2040_CLOCKS_CLK_NDX_CTRL(RP2040_CLOCKS_NDX_GPOUT2))
+#define RP2040_CLOCKS_CLK_GPOUT2_DIV        (RP2040_CLOCKS_CLK_NDX_DIV(RP2040_CLOCKS_NDX_GPOUT2))
+#define RP2040_CLOCKS_CLK_GPOUT2_SELECTED   (RP2040_CLOCKS_CLK_NDX_SELECTED(RP2040_CLOCKS_NDX_GPOUT2))
+#define RP2040_CLOCKS_CLK_GPOUT3_CTRL       (RP2040_CLOCKS_CLK_NDX_CTRL(RP2040_CLOCKS_NDX_GPOUT3))
+#define RP2040_CLOCKS_CLK_GPOUT3_DIV        (RP2040_CLOCKS_CLK_NDX_DIV(RP2040_CLOCKS_NDX_GPOUT3))
+#define RP2040_CLOCKS_CLK_GPOUT3_SELECTED   (RP2040_CLOCKS_CLK_NDX_SELECTED(RP2040_CLOCKS_NDX_GPOUT3))
+#define RP2040_CLOCKS_CLK_REF_CTRL          (RP2040_CLOCKS_CLK_NDX_CTRL(RP2040_CLOCKS_NDX_REF))
+#define RP2040_CLOCKS_CLK_REF_DIV           (RP2040_CLOCKS_CLK_NDX_DIV(RP2040_CLOCKS_NDX_REF))
+#define RP2040_CLOCKS_CLK_REF_SELECTED      (RP2040_CLOCKS_CLK_NDX_SELECTED(RP2040_CLOCKS_NDX_REF))
+#define RP2040_CLOCKS_CLK_SYS_CTRL          (RP2040_CLOCKS_CLK_NDX_CTRL(RP2040_CLOCKS_NDX_SYS))
+#define RP2040_CLOCKS_CLK_SYS_DIV           (RP2040_CLOCKS_CLK_NDX_DIV(RP2040_CLOCKS_NDX_SYS))
+#define RP2040_CLOCKS_CLK_SYS_SELECTED      (RP2040_CLOCKS_CLK_NDX_SELECTED(RP2040_CLOCKS_NDX_SYS))
+#define RP2040_CLOCKS_CLK_PERI_CTRL         (RP2040_CLOCKS_CLK_NDX_CTRL(RP2040_CLOCKS_NDX_PERI))
+#define RP2040_CLOCKS_CLK_PERI_SELECTED     (RP2040_CLOCKS_CLK_NDX_SELECTED(RP2040_CLOCKS_NDX_PERI))
+#define RP2040_CLOCKS_CLK_USB_CTRL          (RP2040_CLOCKS_CLK_NDX_CTRL(RP2040_CLOCKS_NDX_USB))
+#define RP2040_CLOCKS_CLK_USB_DIV           (RP2040_CLOCKS_CLK_NDX_DIV(RP2040_CLOCKS_NDX_USB))
+#define RP2040_CLOCKS_CLK_USB_SELECTED      (RP2040_CLOCKS_CLK_NDX_SELECTED(RP2040_CLOCKS_NDX_USB))
+#define RP2040_CLOCKS_CLK_ADC_CTRL          (RP2040_CLOCKS_CLK_NDX_CTRL(RP2040_CLOCKS_NDX_ADC))
+#define RP2040_CLOCKS_CLK_ADC_DIV           (RP2040_CLOCKS_CLK_NDX_DIV(RP2040_CLOCKS_NDX_ADC))
+#define RP2040_CLOCKS_CLK_ADC_SELECTED      (RP2040_CLOCKS_CLK_NDX_SELECTED(RP2040_CLOCKS_NDX_ADC))
+#define RP2040_CLOCKS_CLK_RTC_CTRL          (RP2040_CLOCKS_CLK_NDX_CTRL(RP2040_CLOCKS_NDX_RTC))
+#define RP2040_CLOCKS_CLK_RTC_DIV           (RP2040_CLOCKS_CLK_NDX_DIV(RP2040_CLOCKS_NDX_RTC))
+#define RP2040_CLOCKS_CLK_RTC_SELECTED      (RP2040_CLOCKS_CLK_NDX_SELECTED(RP2040_CLOCKS_NDX_RTC))
+
 #define RP2040_CLOCKS_CLK_SYS_RESUS_CTRL    (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_SYS_RESUS_CTRL_OFFSET)
 #define RP2040_CLOCKS_CLK_SYS_RESUS_STATUS  (RP2040_CLOCKS_BASE + RP2040_CLOCKS_CLK_SYS_RESUS_STATUS_OFFSET)
 #define RP2040_CLOCKS_FC0_REF_KHZ           (RP2040_CLOCKS_BASE + RP2040_CLOCKS_FC0_REF_KHZ_OFFSET)
@@ -141,9 +133,7 @@
 #define RP2040_CLOCKS_INTF                  (RP2040_CLOCKS_BASE + RP2040_CLOCKS_INTF_OFFSET)
 #define RP2040_CLOCKS_INTS                  (RP2040_CLOCKS_BASE + RP2040_CLOCKS_INTS_OFFSET)
 
-
 /* Register bit definitions *************************************************/
-
 
 #define RP2040_CLOCKS_CLK_GPOUT0_CTRL_NUDGE                  (1 << 20)  /* An edge on this signal shifts the phase of the output by 1 cycle of the input clock This can be done at any time */
 #define RP2040_CLOCKS_CLK_GPOUT0_CTRL_PHASE_SHIFT            (16)  /* This delays the enable signal by up to 3 cycles of the input clock This must be set before the clock is enabled to have any effect */
@@ -263,6 +253,7 @@
 #define RP2040_CLOCKS_CLK_SYS_CTRL_AUXSRC_CLKSRC_GPIN0       (0x4 << RP2040_CLOCKS_CLK_SYS_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_SYS_CTRL_AUXSRC_CLKSRC_GPIN1       (0x5 << RP2040_CLOCKS_CLK_SYS_CTRL_AUXSRC_SHIFT)
 #define RP2040_CLOCKS_CLK_SYS_CTRL_SRC                       (1 << 0)
+#define RP2040_CLOCKS_CLK_SYS_CTRL_SRC_CLKSRC_CLK_SYS_AUX    (0x1)
 
 #define RP2040_CLOCKS_CLK_SYS_DIV_INT_SHIFT                  (8)  /* Integer component of the divisor, 0 -> divide by 2^16 */
 #define RP2040_CLOCKS_CLK_SYS_DIV_INT_MASK                   (0xffffff << RP2040_CLOCKS_CLK_SYS_DIV_INT_SHIFT)
@@ -532,6 +523,5 @@
 #define RP2040_CLOCKS_INTF_CLK_SYS_RESUS                     (1 << 0)
 
 #define RP2040_CLOCKS_INTS_CLK_SYS_RESUS                     (1 << 0)
-
 
 #endif /* __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_CLOCKS_H */
