@@ -50,47 +50,12 @@
  * Public Functions
  ****************************************************************************/
 
-void rp2040_gpioinit(void)
+void rp2040_gpio_set_function(uint32_t gpio, uint32_t func)
 {
-  modbits_reg32(RP2040_PADS_BANK0_GPIO0_IE,
-                RP2040_PADS_BANK0_GPIO0_IE | RP2040_PADS_BANK0_GPIO0_OD,
-                RP2040_PADS_BANK0_GPIO0);
+  modbits_reg32(RP2040_PADS_BANK0_GPIO_IE,
+                RP2040_PADS_BANK0_GPIO_IE | RP2040_PADS_BANK0_GPIO_OD,
+                RP2040_PADS_BANK0_GPIO(gpio));
 
-  putreg32(RP2040_IO_BANK0_GPIO0_CTRL_FUNCSEL_UART0_TX,
-           RP2040_IO_BANK0_GPIO0_CTRL);
-
-  modbits_reg32(RP2040_PADS_BANK0_GPIO1_IE,
-                RP2040_PADS_BANK0_GPIO1_IE | RP2040_PADS_BANK0_GPIO1_OD,
-                RP2040_PADS_BANK0_GPIO1);
-
-  putreg32(RP2040_IO_BANK0_GPIO1_CTRL_FUNCSEL_UART0_RX,
-           RP2040_IO_BANK0_GPIO1_CTRL);
-
-#if 0
-  setbits_reg32(RP2040_RESETS_RESET_uart0, RP2040_RESETS_RESET);
-  clrbits_reg32(RP2040_RESETS_RESET_uart0, RP2040_RESETS_RESET);
-  while (~getreg32(RP2040_RESETS_RESET_DONE) & RP2040_RESETS_RESET_uart0)
-    ;
-#endif
-
-#if 0
-    putreg32(RP2040_IO_BANK0_GPIO25_CTRL_FUNCSEL_SIO_25,
-             RP2040_IO_BANK0_GPIO25_CTRL);
-    putreg32(1 << 25, RP2040_SIO_GPIO_OE_SET);
-    putreg32(1 << 25, RP2040_SIO_GPIO_OUT_SET);
-    putreg32(1 << 25, RP2040_SIO_GPIO_OUT_CLR);
-    putreg32(1 << 25, RP2040_SIO_GPIO_OUT_SET);
-    putreg32(1 << 25, RP2040_SIO_GPIO_OUT_CLR);
-    putreg32(1 << 25, RP2040_SIO_GPIO_OUT_SET);
-
-    {
-        int i;
-        while (1) {
-            putreg32(1 << 25, RP2040_SIO_GPIO_OUT_XOR);
-            for (i = 0; i < 125000000 / 5; i++) {
-                __asm__ volatile("nop");
-            }
-        }
-    }
-#endif
+  putreg32(func & RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_MASK,
+           RP2040_IO_BANK0_GPIO_CTRL(gpio));
 }

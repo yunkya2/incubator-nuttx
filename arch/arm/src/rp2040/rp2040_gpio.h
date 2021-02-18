@@ -54,7 +54,7 @@ extern "C"
  * Public Functions
  ************************************************************************************/
 
-void rp2040_gpioinit(void);
+void rp2040_gpio_set_function(uint32_t gpio, uint32_t func);
 
 #undef EXTERN
 #if defined(__cplusplus)
