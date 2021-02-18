@@ -35,11 +35,21 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-
 #define MHZ                     1000000
 
 #define BOARD_XOSC_FREQ         (12 * MHZ)
-#define BOARD_UART_BASEFREQ     (125 * MHZ)
+#define BOARD_PLL_SYS_FREQ      (125 * MHZ)
+#define BOARD_PLL_USB_FREQ      (48 * MHZ)
+
+#define BOARD_REF_FREQ          (12 * MHZ)
+#define BOARD_SYS_FREQ          (125 * MHZ)
+#define BOARD_PERI_FREQ         (125 * MHZ)
+#define BOARD_USB_FREQ          (48 * MHZ)
+#define BOARD_ADC_FREQ          (48 * MHZ)
+#define BOARD_RTC_FREQ          46875
+
+#define BOARD_UART_BASEFREQ     BOARD_PERI_FREQ
+
 #define BOARD_TICK_CLOCK        (1 * MHZ)
 
 #endif /* __BOARDS_ARM_RP2040_RASPBERRYPI_PICO_INCLUDE_BOARD_H */
