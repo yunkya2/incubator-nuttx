@@ -21,15 +21,15 @@
 #ifndef __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_PADS_BANK0_H
 #define __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_PADS_BANK0_H
 
-/********************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************/
+ ****************************************************************************/
 
 #include "hardware/rp2040_memorymap.h"
 
-/********************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************/
+ ****************************************************************************/
 
 /* Register offsets *********************************************************/
 
@@ -103,9 +103,7 @@
 #define RP2040_PADS_BANK0_SWCLK           (RP2040_PADS_BANK0_BASE + RP2040_PADS_BANK0_SWCLK_OFFSET)
 #define RP2040_PADS_BANK0_SWD             (RP2040_PADS_BANK0_BASE + RP2040_PADS_BANK0_SWD_OFFSET)
 
-
 /* Register bit definitions *************************************************/
-
 
 #define RP2040_PADS_BANK0_VOLTAGE_SELECT      (1 << 0)  /* Set voltage to 1.8V (DVDD <= 1V8) */
 
@@ -524,6 +522,5 @@
 #define RP2040_PADS_BANK0_SWD_PDE             (1 << 2)  /* Pull down enable */
 #define RP2040_PADS_BANK0_SWD_SCHMITT         (1 << 1)  /* Enable schmitt trigger */
 #define RP2040_PADS_BANK0_SWD_SLEWFAST        (1 << 0)  /* Slew rate control. 1 = Fast, 0 = Slow */
-
 
 #endif /* __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_PADS_BANK0_H */

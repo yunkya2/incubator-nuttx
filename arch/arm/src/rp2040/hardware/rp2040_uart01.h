@@ -21,15 +21,15 @@
 #ifndef __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_UART01_H
 #define __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_UART01_H
 
-/********************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************/
+ ****************************************************************************/
 
 #include "hardware/rp2040_memorymap.h"
 
-/********************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************/
+ ****************************************************************************/
 
 /* Register offsets *********************************************************/
 
@@ -56,7 +56,7 @@
 #define RP2040_UART_UARTPCELLID2_OFFSET   0x000ff8  /* UARTPCellID2 Register */
 #define RP2040_UART_UARTPCELLID3_OFFSET   0x000ffc  /* UARTPCellID3 Register */
 
-/* Register definitions (UART) *********************************************/
+/* Register definitions (UART) **********************************************/
 
 #define RP2040_UART0_UARTDR         (RP2040_UART_BASE + RP2040_UART_UARTDR_OFFSET)
 #define RP2040_UART0_UARTRSR        (RP2040_UART_BASE + RP2040_UART_UARTRSR_OFFSET)
@@ -106,9 +106,7 @@
 #define RP2040_UART1_UARTPCELLID2   (RP2040_UART1_BASE + RP2040_UART_UARTPCELLID2_OFFSET)
 #define RP2040_UART1_UARTPCELLID3   (RP2040_UART1_BASE + RP2040_UART_UARTPCELLID3_OFFSET)
 
-
 /* Register bit definitions *************************************************/
-
 
 #define RP2040_UART_UARTDR_OE                         (1 << 11)  /* Overrun error. This bit is set to 1 if data is received and the receive FIFO is already full. This is cleared to 0 once there is an empty space in the FIFO and a new character can be written to it. */
 #define RP2040_UART_UARTDR_BE                         (1 << 10)  /* Break error. This bit is set to 1 if a break condition was detected, indicating that the received data input was held LOW for longer than a full-word transmission time (defined as start, data, parity and stop bits). In FIFO mode, this error is associated with the character at the top of the FIFO. When a break occurs, only one 0 character is loaded into the FIFO. The next character is only enabled after the receive data input goes to a 1 (marking state), and the next valid start bit is received. */
@@ -238,6 +236,5 @@
 #define RP2040_UART_UARTPCELLID2_MASK                 (0xff)  /* These bits read back as 0x05 */
 
 #define RP2040_UART_UARTPCELLID3_MASK                 (0xff)  /* These bits read back as 0xB1 */
-
 
 #endif /* __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_UART01_H */

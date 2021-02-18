@@ -21,15 +21,15 @@
 #ifndef __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_WATCHDOG_H
 #define __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_WATCHDOG_H
 
-/********************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************/
+ ****************************************************************************/
 
 #include "hardware/rp2040_memorymap.h"
 
-/********************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************/
+ ****************************************************************************/
 
 /* Register offsets *********************************************************/
 
@@ -61,9 +61,7 @@
 #define RP2040_WATCHDOG_SCRATCH7  (RP2040_WATCHDOG_BASE + RP2040_WATCHDOG_SCRATCH7_OFFSET)
 #define RP2040_WATCHDOG_TICK      (RP2040_WATCHDOG_BASE + RP2040_WATCHDOG_TICK_OFFSET)
 
-
 /* Register bit definitions *************************************************/
-
 
 #define RP2040_WATCHDOG_CTRL_TRIGGER      (1 << 31)  /* Trigger a watchdog reset */
 #define RP2040_WATCHDOG_CTRL_ENABLE       (1 << 30)  /* When not enabled the watchdog timer is paused */
@@ -82,6 +80,5 @@
 #define RP2040_WATCHDOG_TICK_RUNNING      (1 << 10)  /* Is the tick generator running? */
 #define RP2040_WATCHDOG_TICK_ENABLE       (1 << 9)  /* start / stop tick generation */
 #define RP2040_WATCHDOG_TICK_CYCLES_MASK  (0x1ff)  /* Total number of clk_tick cycles before the next tick. */
-
 
 #endif /* __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_WATCHDOG_H */

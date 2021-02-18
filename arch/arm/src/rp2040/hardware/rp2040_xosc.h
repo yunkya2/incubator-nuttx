@@ -21,15 +21,15 @@
 #ifndef __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_XOSC_H
 #define __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_XOSC_H
 
-/********************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************/
+ ****************************************************************************/
 
 #include "hardware/rp2040_memorymap.h"
 
-/********************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************/
+ ****************************************************************************/
 
 /* Register offsets *********************************************************/
 
@@ -47,9 +47,7 @@
 #define RP2040_XOSC_STARTUP  (RP2040_XOSC_BASE + RP2040_XOSC_STARTUP_OFFSET)
 #define RP2040_XOSC_COUNT    (RP2040_XOSC_BASE + RP2040_XOSC_COUNT_OFFSET)
 
-
 /* Register bit definitions *************************************************/
-
 
 #define RP2040_XOSC_CTRL_ENABLE_SHIFT             (12)  /* On power-up this field is initialised to DISABLE and the chip runs from the ROSC. If the chip has subsequently been programmed to run from the XOSC then setting this field to DISABLE may lock-up the chip. If this is a concern then run the clk_ref from the ROSC and enable the clk_sys RESUS feature. The 12-bit code is intended to give some protection against accidental writes. An invalid setting will enable the oscillator. */
 #define RP2040_XOSC_CTRL_ENABLE_MASK              (0xfff << RP2040_XOSC_CTRL_ENABLE_SHIFT)
@@ -74,6 +72,5 @@
 #define RP2040_XOSC_STARTUP_DELAY_MASK            (0x3fff)  /* in multiples of 256*xtal_period */
 
 #define RP2040_XOSC_COUNT_MASK                    (0xff)
-
 
 #endif /* __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_XOSC_H */

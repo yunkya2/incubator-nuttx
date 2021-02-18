@@ -21,15 +21,15 @@
 #ifndef __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_PLL_H
 #define __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_PLL_H
 
-/********************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************/
+ ****************************************************************************/
 
 #include "hardware/rp2040_memorymap.h"
 
-/********************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************/
+ ****************************************************************************/
 
 /* Register offsets *********************************************************/
 
@@ -52,9 +52,7 @@
 #define RP2040_PLL_USB_FBDIV_INT  (RP2040_PLL_USB_BASE + RP2040_PLL_FBDIV_INT_OFFSET)
 #define RP2040_PLL_USB_PRIM       (RP2040_PLL_USB_BASE + RP2040_PLL_PRIM_OFFSET)
 
-
 /* Register bit definitions *************************************************/
-
 
 #define RP2040_PLL_CS_LOCK              (1 << 31)  /* PLL is locked */
 #define RP2040_PLL_CS_BYPASS            (1 << 8)  /* Passes the reference clock to the output instead of the divided VCO. The VCO continues to run so the user can switch between the reference clock and the divided VCO but the output will glitch when doing so. */
@@ -71,6 +69,5 @@
 #define RP2040_PLL_PRIM_POSTDIV1_MASK   (0x07 << RP2040_PLL_PRIM_POSTDIV1_SHIFT)
 #define RP2040_PLL_PRIM_POSTDIV2_SHIFT  (12)  /* divide by 1-7 */
 #define RP2040_PLL_PRIM_POSTDIV2_MASK   (0x07 << RP2040_PLL_PRIM_POSTDIV2_SHIFT)
-
 
 #endif /* __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_PLL_H */

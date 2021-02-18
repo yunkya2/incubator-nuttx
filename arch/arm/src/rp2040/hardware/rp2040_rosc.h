@@ -21,15 +21,15 @@
 #ifndef __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_ROSC_H
 #define __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_ROSC_H
 
-/********************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************/
+ ****************************************************************************/
 
 #include "hardware/rp2040_memorymap.h"
 
-/********************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************/
+ ****************************************************************************/
 
 /* Register offsets *********************************************************/
 
@@ -55,9 +55,7 @@
 #define RP2040_ROSC_RANDOMBIT  (RP2040_ROSC_BASE + RP2040_ROSC_RANDOMBIT_OFFSET)
 #define RP2040_ROSC_COUNT      (RP2040_ROSC_BASE + RP2040_ROSC_COUNT_OFFSET)
 
-
 /* Register bit definitions *************************************************/
-
 
 #define RP2040_ROSC_CTRL_ENABLE_SHIFT        (12)  /* On power-up this field is initialised to ENABLE The system clock must be switched to another source before setting this field to DISABLE otherwise the chip will lock up The 12-bit code is intended to give some protection against accidental writes. An invalid setting will enable the oscillator. */
 #define RP2040_ROSC_CTRL_ENABLE_MASK         (0xfff << RP2040_ROSC_CTRL_ENABLE_SHIFT)
@@ -108,6 +106,5 @@
 #define RP2040_ROSC_RANDOMBIT                (1 << 0)
 
 #define RP2040_ROSC_COUNT_MASK               (0xff)
-
 
 #endif /* __ARCH_ARM_SRC_RP2040_HARDWARE_RP2040_ROSC_H */
