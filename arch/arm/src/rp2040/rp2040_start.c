@@ -88,6 +88,14 @@ void __start(void)
 #endif
   uint32_t *dest;
 
+  if (up_cpu_index() != 0)
+    {
+      while (1)
+        {
+          __asm__ volatile ("wfe");
+        }
+    }
+
   /* Clear .bss.  We'll do this inline (vs. calling memset) just to be
    * certain that there are no issues with the state of global variables.
    */

@@ -109,11 +109,15 @@ static void core1_boot(void)
   fifo_drain();
   *(int *)0xd0000050 = 0;
 
+  printf("cpu 1 %x\n", *(int *)0xd0000050);
+
   /* Setup NVIC */
 
   up_irqinitialize();
 
   irq_attach(RP2040_SIO_IRQ_PROC1, arm_pause_handler, NULL);
+  printf("cpu 1 %x\n", *(int *)0xd0000050);
+
   up_enable_irq(RP2040_SIO_IRQ_PROC1);
 
   spin_unlock(&g_core1_boot);
@@ -214,7 +218,10 @@ retry:
 
   if (!fifo_comm((uint32_t)core1_boot)) goto retry;
 
+  fifo_drain();
   *(int *)0xd0000050 = 0;
+  printf("cpu 0 %x\n", *(int *)0xd0000050);
+
 
   irq_attach(RP2040_SIO_IRQ_PROC0, arm_pause_handler, NULL);
   up_enable_irq(RP2040_SIO_IRQ_PROC0);
@@ -225,130 +232,5 @@ retry:
 
   return 0;
 }
-
-
-
-
-
-/****************************************************************************
- * Name: up_cpu_pausereq
- *
- * Description:
- *   Return true if a pause request is pending for this CPU.
- *
- * Input Parameters:
- *   cpu - The index of the CPU to be queried
- *
- * Returned Value:
- *   true   = a pause request is pending.
- *   false = no pasue request is pending.
- *
- ****************************************************************************/
-
-bool up_cpu_pausereq(int cpu)
-{
-}
-
-/****************************************************************************
- * Name: up_cpu_paused
- *
- * Description:
- *   Handle a pause request from another CPU.  Normally, this logic is
- *   executed from interrupt handling logic within the architecture-specific
- *   However, it is sometimes necessary necessary to perform the pending
- *   pause operation in other contexts where the interrupt cannot be taken
- *   in order to avoid deadlocks.
- *
- *   This function performs the following operations:
- *
- *   1. It saves the current task state at the head of the current assigned
- *      task list.
- *   2. It waits on a spinlock, then
- *   3. Returns from interrupt, restoring the state of the new task at the
- *      head of the ready to run list.
- *
- * Input Parameters:
- *   cpu - The index of the CPU to be paused
- *
- * Returned Value:
- *   On success, OK is returned.  Otherwise, a negated errno value indicating
- *   the nature of the failure is returned.
- *
- ****************************************************************************/
-
-int up_cpu_paused(int cpu)
-{
-}
-
-/****************************************************************************
- * Name: arm_pause_handler
- *
- * Description:
- *   Inter-CPU interrupt handler
- *
- * Input Parameters:
- *   Standard interrupt handler inputs
- *
- * Returned Value:
- *   Should always return OK
- *
- ****************************************************************************/
-
-int arm_pause_handler(int irq, void *c, FAR void *arg)
-{
-}
-
-/****************************************************************************
- * Name: up_cpu_pause
- *
- * Description:
- *   Save the state of the current task at the head of the
- *   g_assignedtasks[cpu] task list and then pause task execution on the
- *   CPU.
- *
- *   This function is called by the OS when the logic executing on one CPU
- *   needs to modify the state of the g_assignedtasks[cpu] list for another
- *   CPU.
- *
- * Input Parameters:
- *   cpu - The index of the CPU to be stopped/
- *
- * Returned Value:
- *   Zero on success; a negated errno value on failure.
- *
- ****************************************************************************/
-
-int up_cpu_pause(int cpu)
-{
-}
-
-/****************************************************************************
- * Name: up_cpu_resume
- *
- * Description:
- *   Restart the cpu after it was paused via up_cpu_pause(), restoring the
- *   state of the task at the head of the g_assignedtasks[cpu] list, and
- *   resume normal tasking.
- *
- *   This function is called after up_cpu_pause in order resume operation of
- *   the CPU after modifying its g_assignedtasks[cpu] list.
- *
- * Input Parameters:
- *   cpu - The index of the CPU being re-started.
- *
- * Returned Value:
- *   Zero on success; a negated errno value on failure.
- *
- ****************************************************************************/
-
-int up_cpu_resume(int cpu)
-{
-}
-
-
-void rp2040_send_irqreq(int irq)
-{
-}
-
 
 #endif /* CONFIG_SMP */
