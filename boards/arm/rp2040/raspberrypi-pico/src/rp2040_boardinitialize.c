@@ -78,7 +78,8 @@ void rp2040_boardearlyinitialize(void)
                            RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SIO);
   putreg32(1 << BOARD_GPIO_LED_PIN, RP2040_SIO_GPIO_OE_SET);
 
-  putreg32(1 << BOARD_GPIO_LED_PIN, RP2040_SIO_GPIO_OUT_SET);
+//  putreg32(1 << BOARD_GPIO_LED_PIN, RP2040_SIO_GPIO_OUT_SET);
+  putreg32(1 << BOARD_GPIO_LED_PIN, RP2040_SIO_GPIO_OUT_CLR);
 }
 
 /****************************************************************************

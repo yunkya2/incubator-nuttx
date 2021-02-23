@@ -116,7 +116,8 @@ static void core1_boot(void)
   up_irqinitialize();
 
   irq_attach(RP2040_SIO_IRQ_PROC1, arm_pause_handler, NULL);
-  printf("cpu 1 %x\n", *(int *)0xd0000050);
+  printf("cpu 1 %x %x\n", *(int *)0xd0000050, *(int *)0xe000e200);
+  *(int *)0xe000e280 = 1 << 16;
 
   up_enable_irq(RP2040_SIO_IRQ_PROC1);
 
@@ -218,10 +219,11 @@ retry:
 
   if (!fifo_comm((uint32_t)core1_boot)) goto retry;
 
-  fifo_drain();
   *(int *)0xd0000050 = 0;
-  printf("cpu 0 %x\n", *(int *)0xd0000050);
+  fifo_drain();
+  printf("cpu 0 %x %x\n", *(int *)0xd0000050, *(int *)0xe000e200);
 
+  *(int *)0xe000e280 = 1 << 15;
 
   irq_attach(RP2040_SIO_IRQ_PROC0, arm_pause_handler, NULL);
   up_enable_irq(RP2040_SIO_IRQ_PROC0);

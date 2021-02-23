@@ -37,6 +37,7 @@
 #include "rp2040_config.h"
 #include "rp2040_clock.h"
 #include "rp2040_uart.h"
+#include "hardware/rp2040_sio.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -109,6 +110,7 @@ void __start(void)
 
   rp2040_clockconfig();
   rp2040_boardearlyinitialize();
+  putreg32(0, RP2040_SIO_SPINLOCK0);
   rp2040_lowsetup();
   showprogress('A');
 

@@ -189,10 +189,15 @@ int up_cpu_paused(int cpu)
  *
  ****************************************************************************/
 
+#include <arch/board/board.h>
+#include "hardware/rp2040_io_bank0.h"
+#include "hardware/rp2040_sio.h"
+
 int arm_pause_handler(int irq, void *c, FAR void *arg)
 {
+//  if (up_cpu_index() == 1)
+//    putreg32(1 << BOARD_GPIO_LED_PIN, RP2040_SIO_GPIO_OUT_SET);
 //printf("arm_pause_handler %d %d\n", irq, up_cpu_index());
-#if 0
   int cpu = up_cpu_index();
 
   getreg32(RP2040_SIO_FIFO_ST);
@@ -220,7 +225,6 @@ int arm_pause_handler(int irq, void *c, FAR void *arg)
 
       leave_critical_section(flags);
     }
-#endif
 
   return OK;
 }
@@ -247,8 +251,7 @@ int arm_pause_handler(int irq, void *c, FAR void *arg)
 
 int up_cpu_pause(int cpu)
 {
-printf("up_cpu_pause %d %d\n", cpu, up_cpu_index());
-#if 0
+//printf("up_cpu_pause %d %d\n", cpu, up_cpu_index());
   DPRINTF("cpu=%d\n", cpu);
 
 #ifdef CONFIG_SCHED_INSTRUMENTATION
@@ -293,7 +296,6 @@ printf("up_cpu_pause %d %d\n", cpu, up_cpu_index());
    */
 
   return 0;
-#endif
 }
 
 /****************************************************************************
@@ -317,8 +319,7 @@ printf("up_cpu_pause %d %d\n", cpu, up_cpu_index());
 
 int up_cpu_resume(int cpu)
 {
-printf("up_cpu_resume %d %d\n", cpu, up_cpu_index());
-#if 0
+//printf("up_cpu_resume %d %d\n", cpu, up_cpu_index());
   DPRINTF("cpu=%d\n", cpu);
 
 #ifdef CONFIG_SCHED_INSTRUMENTATION
@@ -340,7 +341,6 @@ printf("up_cpu_resume %d %d\n", cpu, up_cpu_index());
   spin_unlock(&g_cpu_wait[cpu]);
 
   return 0;
-#endif
 }
 
 
