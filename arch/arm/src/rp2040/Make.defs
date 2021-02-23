@@ -61,6 +61,9 @@ CHIP_CSRCS += rp2040_pll.c
 
 ifeq ($(CONFIG_SMP),y)
 CHIP_CSRCS += rp2040_cpuindex.c
+CHIP_CSRCS += rp2040_cpustart.c
+CHIP_CSRCS += rp2040_cpuidlestack.c
+CHIP_CSRCS += rp2040_testset.c
 endif
 
 ifeq ($(CONFIG_RP2040_FLASH_BOOT),y)
