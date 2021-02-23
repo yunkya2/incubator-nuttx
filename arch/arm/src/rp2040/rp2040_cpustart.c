@@ -43,6 +43,9 @@
 
 #include "hardware/rp2040_memorymap.h"
 
+#include "hardware/rp2040_sio.h"
+#include "hardware/rp2040_psm.h"
+
 #ifdef CONFIG_SMP
 
 /****************************************************************************
@@ -76,7 +79,6 @@ extern void fpuconfig(void);
  * Private Functions
  ****************************************************************************/
 
-#if 0
 /****************************************************************************
  * Name: appdsp_boot
  *
@@ -91,6 +93,11 @@ extern void fpuconfig(void);
 
 static void appdsp_boot(void)
 {
+  while (1)
+    {
+      __asm__ volatile ("nop");
+    }
+#if 0
   int cpu;
 
   cpu = up_cpu_index();
@@ -124,8 +131,8 @@ static void appdsp_boot(void)
   /* Then transfer control to the IDLE task */
 
   nx_idle_trampoline();
-}
 #endif
+}
 
 /****************************************************************************
  * Public Functions
@@ -158,9 +165,23 @@ static void appdsp_boot(void)
  *
  ****************************************************************************/
 
+int fifo_comm(uint32_t msg)
+{
+  uint32_t rcv;
+
+  while (!(getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_RDY))
+    ;
+  putreg32(msg, RP2040_SIO_FIFO_WR);
+
+//  while (!(getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_VLD))
+//    ;
+  rcv = getreg32(RP2040_SIO_FIFO_RD);
+
+  return msg == rcv;
+}
+
 int up_cpu_start(int cpu)
 {
-#if 0
   int i;
   struct tcb_s *tcb = current_task(cpu);
 
@@ -172,10 +193,29 @@ int up_cpu_start(int cpu)
   sched_note_cpu_start(this_task(), cpu);
 #endif
 
-  /* Reset APP_DSP(cpu) */
+  putreg32(0, RP2040_SIO_SPINLOCK0);
 
-  modifyreg32(CXD56_CRG_RESET, 1 << (16 + cpu), 0);
+  /* Reset Core 1 */
+#if 0
+  setbits_reg32(RP2040_PSM_PROC1, RP2040_PSM_FRCE_OFF);
+  while (!(getreg32(RP2040_PSM_FRCE_OFF) & RP2040_PSM_PROC1))
+    ;
+  clrbits_reg32(RP2040_PSM_PROC1, RP2040_PSM_FRCE_OFF);
+#endif
 
+  while (getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_VLD)
+    {
+      getreg32(RP2040_SIO_FIFO_RD);
+    }
+
+  fifo_comm(0);
+  fifo_comm(0);
+  fifo_comm(1);
+  fifo_comm(0x10000000);
+  fifo_comm((uint32_t)tcb->adj_stack_ptr);
+  fifo_comm((uint32_t)appdsp_boot);
+
+#if 0
   /* Copy initial stack and reset vector for APP_DSP */
 
   putreg32((uint32_t)tcb->adj_stack_ptr, VECTOR_ISTACK);
@@ -235,9 +275,9 @@ int up_cpu_start(int cpu)
   /* APP_DSP(cpu) boot done */
 
   spin_unlock(&g_appdsp_boot);
+#endif
 
   return 0;
-#endif
 }
 
 
