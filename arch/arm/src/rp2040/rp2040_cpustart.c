@@ -91,11 +91,20 @@ extern void fpuconfig(void);
  *
  ****************************************************************************/
 
+#include "hardware/rp2040_sio.h"
+
 static void appdsp_boot(void)
 {
+  int i;
+
+  putreg32(1 << 25, RP2040_SIO_GPIO_OUT_SET);
   while (1)
     {
       __asm__ volatile ("nop");
+      if (++i > 500000) {
+        i = 0;
+      putreg32(1 << 25, RP2040_SIO_GPIO_OUT_XOR);
+      }
     }
 #if 0
   int cpu;
@@ -165,6 +174,18 @@ static void appdsp_boot(void)
  *
  ****************************************************************************/
 
+void fifo_drain(void)
+{
+  uint32_t rcv;
+
+  while (getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_VLD)
+    {
+      rcv = getreg32(RP2040_SIO_FIFO_RD);
+    }
+  __asm__ volatile ("sev");
+}
+
+
 int fifo_comm(uint32_t msg)
 {
   uint32_t rcv;
@@ -172,9 +193,11 @@ int fifo_comm(uint32_t msg)
   while (!(getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_RDY))
     ;
   putreg32(msg, RP2040_SIO_FIFO_WR);
+  __asm__ volatile ("sev");
 
-//  while (!(getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_VLD))
-//    ;
+  while (!(getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_VLD))
+    __asm__ volatile ("wfe");
+
   rcv = getreg32(RP2040_SIO_FIFO_RD);
 
   return msg == rcv;
@@ -196,24 +219,22 @@ int up_cpu_start(int cpu)
   putreg32(0, RP2040_SIO_SPINLOCK0);
 
   /* Reset Core 1 */
-#if 0
+#if 1
   setbits_reg32(RP2040_PSM_PROC1, RP2040_PSM_FRCE_OFF);
   while (!(getreg32(RP2040_PSM_FRCE_OFF) & RP2040_PSM_PROC1))
     ;
   clrbits_reg32(RP2040_PSM_PROC1, RP2040_PSM_FRCE_OFF);
 #endif
 
-  while (getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_VLD)
-    {
-      getreg32(RP2040_SIO_FIFO_RD);
-    }
-
-  fifo_comm(0);
-  fifo_comm(0);
-  fifo_comm(1);
-  fifo_comm(0x10000000);
-  fifo_comm((uint32_t)tcb->adj_stack_ptr);
-  fifo_comm((uint32_t)appdsp_boot);
+retry:
+  fifo_drain();
+  if (!fifo_comm(0)) goto retry;
+  fifo_drain();
+  if (!fifo_comm(0)) goto retry;
+  if (!fifo_comm(1)) goto retry;
+  if (!fifo_comm(0x10000000)) goto retry;
+  if (!fifo_comm((uint32_t)tcb->adj_stack_ptr)) goto retry;
+  if (!fifo_comm((uint32_t)appdsp_boot)) goto retry;
 
 #if 0
   /* Copy initial stack and reset vector for APP_DSP */
