@@ -68,22 +68,30 @@
  * Public Data
  ****************************************************************************/
 
-#if 0
-volatile static spinlock_t g_appdsp_boot;
+volatile static spinlock_t g_core1_boot;
 
 extern int arm_pause_handler(int irq, void *c, FAR void *arg);
-extern void fpuconfig(void);
-#endif
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
+void fifo_drain(void)
+{
+  uint32_t rcv;
+
+  while (getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_VLD)
+    {
+      rcv = getreg32(RP2040_SIO_FIFO_RD);
+    }
+  __asm__ volatile ("sev");
+}
+
 /****************************************************************************
- * Name: appdsp_boot
+ * Name: core1_boot
  *
  * Description:
- *   This is the boot vector for APP_DSP
+ *   This is the boot vector for Core #1
  *
  * Input Parameters:
  *
@@ -93,43 +101,22 @@ extern void fpuconfig(void);
 
 #include "hardware/rp2040_sio.h"
 
-static void appdsp_boot(void)
+static void core1_boot(void)
 {
-  int i;
+//  int cpu = up_cpu_index();
+//  DPRINTF("cpu = %d\n", cpu);
 
-  putreg32(1 << 25, RP2040_SIO_GPIO_OUT_SET);
-  while (1)
-    {
-      __asm__ volatile ("nop");
-      if (++i > 500000) {
-        i = 0;
-      putreg32(1 << 25, RP2040_SIO_GPIO_OUT_XOR);
-      }
-    }
-#if 0
-  int cpu;
-
-  cpu = up_cpu_index();
-  DPRINTF("cpu = %d\n", cpu);
+  fifo_drain();
+  *(int *)0xd0000050 = 0;
 
   /* Setup NVIC */
 
   up_irqinitialize();
 
-  /* Setup FPU */
+  irq_attach(RP2040_SIO_IRQ_PROC1, arm_pause_handler, NULL);
+  up_enable_irq(RP2040_SIO_IRQ_PROC1);
 
-  fpuconfig();
-
-  /* Clear SW_INT for APP_DSP(cpu) */
-
-  putreg32(0, CXD56_CPU_P2_INT + (4 * cpu));
-
-  /* Enable SW_INT */
-
-  irq_attach(CXD56_IRQ_SW_INT, arm_pause_handler, NULL);
-  up_enable_irq(CXD56_IRQ_SW_INT);
-
-  spin_unlock(&g_appdsp_boot);
+  spin_unlock(&g_core1_boot);
 
 #ifdef CONFIG_SCHED_INSTRUMENTATION
   /* Notify that this CPU has started */
@@ -140,7 +127,6 @@ static void appdsp_boot(void)
   /* Then transfer control to the IDLE task */
 
   nx_idle_trampoline();
-#endif
 }
 
 /****************************************************************************
@@ -173,17 +159,6 @@ static void appdsp_boot(void)
  *   Zero on success; a negated errno value on failure.
  *
  ****************************************************************************/
-
-void fifo_drain(void)
-{
-  uint32_t rcv;
-
-  while (getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_VLD)
-    {
-      rcv = getreg32(RP2040_SIO_FIFO_RD);
-    }
-  __asm__ volatile ("sev");
-}
 
 
 int fifo_comm(uint32_t msg)
@@ -232,71 +207,21 @@ retry:
   fifo_drain();
   if (!fifo_comm(0)) goto retry;
   if (!fifo_comm(1)) goto retry;
-  if (!fifo_comm(0x10000000)) goto retry;
+  if (!fifo_comm(getreg32(ARMV6M_SYSCON_VECTAB))) goto retry;
   if (!fifo_comm((uint32_t)tcb->adj_stack_ptr)) goto retry;
-  if (!fifo_comm((uint32_t)appdsp_boot)) goto retry;
 
-#if 0
-  /* Copy initial stack and reset vector for APP_DSP */
+  spin_lock(&g_core1_boot);
 
-  putreg32((uint32_t)tcb->adj_stack_ptr, VECTOR_ISTACK);
-  putreg32((uint32_t)appdsp_boot, VECTOR_RESETV);
+  if (!fifo_comm((uint32_t)core1_boot)) goto retry;
 
-  spin_lock(&g_appdsp_boot);
+  *(int *)0xd0000050 = 0;
 
-  /* See 3.13.4.16.3 ADSP Startup */
+  irq_attach(RP2040_SIO_IRQ_PROC0, arm_pause_handler, NULL);
+  up_enable_irq(RP2040_SIO_IRQ_PROC0);
 
-  /* 2. Clock supply */
+  spin_lock(&g_core1_boot);
 
-  modifyreg32(CXD56_CRG_CK_GATE_AHB, 0, 1 << (16 + cpu));
-
-  /* 3. Clock stop */
-
-  modifyreg32(CXD56_CRG_CK_GATE_AHB, 1 << (16 + cpu), 0);
-
-  /* 4. APP_DSP(cpu) start preparation */
-
-  /* Copy APP_DSP0 settings to all 12 tiles for APP_DSP(cpu)
-   * TODO: need to exclude memory areas for AMP
-   */
-
-  for (i = 0; i < 12; i++)
-    {
-      uint32_t val = getreg32(CXD56_ACNV_P0_DST0 + (4 * i));
-      putreg32(val, CXD56_ACNV_P0_DST0 + (4 * i) + (cpu * 0x20));
-    }
-
-  /* 5. Reset release */
-
-  modifyreg32(CXD56_CRG_RESET, 0, 1 << (16 + cpu));
-
-  /* 6. Clock supply */
-
-  modifyreg32(CXD56_CRG_CK_GATE_AHB, 0, 1 << (16 + cpu));
-
-  /* Setup SW_INT for APP_DSP0. The caller is APP_DSP0 and
-   * it's enough to setup only once. So, here this setup is
-   * done in case that we boot APP_DSP1 (cpu=1).
-   */
-
-  if (1 == cpu)
-    {
-      /* Clear SW_INT for this APP_DSP0 */
-
-      putreg32(0, CXD56_CPU_P2_INT);
-
-      /* Setup SW_INT for this APP_DSP0 */
-
-      irq_attach(CXD56_IRQ_SW_INT, arm_pause_handler, NULL);
-      up_enable_irq(CXD56_IRQ_SW_INT);
-    }
-
-  spin_lock(&g_appdsp_boot);
-
-  /* APP_DSP(cpu) boot done */
-
-  spin_unlock(&g_appdsp_boot);
-#endif
+  spin_unlock(&g_core1_boot);
 
   return 0;
 }
@@ -420,27 +345,10 @@ int up_cpu_resume(int cpu)
 {
 }
 
-/****************************************************************************
- * Name: up_send_irqreq()
- *
- * Description:
- *   Send up_enable_irq() / up_disable_irq() request to the specified cpu
- *
- *   This function is called from up_enable_irq() or up_disable_irq()
- *   to be handled on specified CPU. Locking protocol in the sequence is
- *   the same as up_pause_cpu() plus up_resume_cpu().
- *
- * Input Parameters:
- *   idx - The request index (0: enable, 1: disable)
- *   irq - The IRQ number to be handled
- *   cpu - The index of the CPU which will handle the request
- *
- ****************************************************************************/
 
-void up_send_irqreq(int idx, int irq, int cpu)
+void rp2040_send_irqreq(int irq)
 {
 }
-
 
 
 #endif /* CONFIG_SMP */

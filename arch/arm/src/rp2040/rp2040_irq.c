@@ -48,6 +48,10 @@
   (NVIC_SYSH_PRIORITY_DEFAULT << 24 | NVIC_SYSH_PRIORITY_DEFAULT << 16 | \
    NVIC_SYSH_PRIORITY_DEFAULT << 8  | NVIC_SYSH_PRIORITY_DEFAULT)
 
+#if defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 7
+#  define INTSTACK_ALLOC (CONFIG_SMP_NCPUS * INTSTACK_SIZE)
+#endif
+
 /****************************************************************************
  * Public Data
  ****************************************************************************/
@@ -67,6 +71,28 @@ volatile uint32_t *g_current_regs[CONFIG_SMP_NCPUS];
 #else
 volatile uint32_t *g_current_regs[1];
 #endif
+
+#ifdef CONFIG_SMP
+extern void rp2040_send_irqreq(int irq);
+#endif
+
+#if defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 7
+/* In the SMP configuration, we will need custom interrupt stacks.
+ * These definitions provide the aligned stack allocations.
+ */
+
+static uint64_t g_intstack_alloc[INTSTACK_ALLOC >> 3];
+
+/* These definitions provide the "top" of the push-down stacks. */
+
+const uint32_t g_cpu_intstack_top[CONFIG_SMP_NCPUS] =
+{
+  (uint32_t)g_intstack_alloc + INTSTACK_SIZE,
+#if CONFIG_SMP_NCPUS > 1
+  (uint32_t)g_intstack_alloc + (2 * INTSTACK_SIZE),
+#endif /* CONFIG_SMP_NCPUS > 1 */
+};
+#endif /* defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 7 */
 
 /* This is the address of the  exception vector table (determined by the
  * linker script).
@@ -281,6 +307,15 @@ void up_disable_irq(int irq)
 {
   DEBUGASSERT((unsigned)irq < NR_IRQS);
 
+#ifdef CONFIG_SMP
+  if (irq >= RP2040_IRQ_EXTINT && irq != RP2040_SIO_IRQ_PROC1 &&
+      up_cpu_index() != 0)
+    {
+      rp2040_send_irqreq(-irq);
+      return;
+    }
+#endif
+
   /* Check for an external interrupt */
 
   if (irq >= RP2040_IRQ_EXTINT && irq < RP2040_IRQ_EXTINT + 32)
@@ -317,6 +352,15 @@ void up_enable_irq(int irq)
    */
 
   DEBUGASSERT((unsigned)irq < NR_IRQS);
+
+#ifdef CONFIG_SMP
+  if (irq >= RP2040_IRQ_EXTINT && irq != RP2040_SIO_IRQ_PROC1 &&
+      up_cpu_index() != 0)
+    {
+      rp2040_send_irqreq(irq);
+      return;
+    }
+#endif
 
   /* Check for external interrupt */
 
@@ -418,5 +462,37 @@ int up_prioritize_irq(int irq, int priority)
 
   rp2040_dumpnvic("prioritize", irq);
   return OK;
+}
+#endif
+
+/****************************************************************************
+ * Name: arm_intstack_base
+ *
+ * Description:
+ *   Return a pointer to the "base" the correct interrupt stack allocation
+ *   for the current CPU. NOTE: Here, the base means "top" of the stack
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 7
+uintptr_t arm_intstack_base(void)
+{
+  return g_cpu_intstack_top[up_cpu_index()];
+}
+#endif
+
+/****************************************************************************
+ * Name: arm_intstack_alloc
+ *
+ * Description:
+ *   Return a pointer to the "alloc" the correct interrupt stack allocation
+ *   for the current CPU.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 7
+uintptr_t arm_intstack_alloc(void)
+{
+  return g_cpu_intstack_top[up_cpu_index()] - INTSTACK_SIZE;
 }
 #endif
