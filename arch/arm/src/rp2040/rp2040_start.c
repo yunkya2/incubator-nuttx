@@ -88,6 +88,7 @@ void __start(void)
   const uint32_t *src;
 #endif
   uint32_t *dest;
+  int i;
 
   if (up_cpu_index() != 0)
     {
@@ -106,11 +107,20 @@ void __start(void)
       *dest++ = 0;
     }
 
-  /* Configure the uart so that we can get debug output as soon as possible */
+  /* Set up clock */
 
   rp2040_clockconfig();
   rp2040_boardearlyinitialize();
-  putreg32(0, RP2040_SIO_SPINLOCK0);
+
+  /* Initialize all spinlock states */
+
+  for (i = 0; i < 32; i++)
+    {
+      putreg32(0, RP2040_SIO_SPINLOCK(i));
+    }
+
+  /* Configure the uart so that we can get debug output as soon as possible */
+
   rp2040_lowsetup();
   showprogress('A');
 

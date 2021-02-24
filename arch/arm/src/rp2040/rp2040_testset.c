@@ -35,6 +35,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#define RP2040_TESTSET_SPINLOCK     0   /* Spinlock used for test and set */
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -64,7 +66,7 @@ spinlock_t up_testset(volatile FAR spinlock_t *lock)
 
   /* Lock hardware spinlock */
 
-  while (getreg32(RP2040_SIO_SPINLOCK0) == 0)
+  while (getreg32(RP2040_SIO_SPINLOCK(RP2040_TESTSET_SPINLOCK)) == 0)
     ;
 
   ret = *lock;
@@ -77,7 +79,7 @@ spinlock_t up_testset(volatile FAR spinlock_t *lock)
 
   /* Unlock hardware spinlock */
 
-  putreg32(0, RP2040_SIO_SPINLOCK0);
+  putreg32(0, RP2040_SIO_SPINLOCK(RP2040_TESTSET_SPINLOCK));
 
   return ret;
 }
