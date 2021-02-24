@@ -73,7 +73,7 @@ volatile uint32_t *g_current_regs[1];
 #endif
 
 #ifdef CONFIG_SMP
-extern void rp2040_send_irqreq(int irq);
+extern void rp2040_send_irqreq(int irqreq);
 #endif
 
 #if defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 7
@@ -311,6 +311,8 @@ void up_disable_irq(int irq)
   if (irq >= RP2040_IRQ_EXTINT && irq != RP2040_SIO_IRQ_PROC1 &&
       up_cpu_index() != 0)
     {
+      /* Must be handled by Core 0 */
+
       rp2040_send_irqreq(-irq);
       return;
     }
@@ -357,6 +359,8 @@ void up_enable_irq(int irq)
   if (irq >= RP2040_IRQ_EXTINT && irq != RP2040_SIO_IRQ_PROC1 &&
       up_cpu_index() != 0)
     {
+      /* Must be handled by Core 0 */
+
       rp2040_send_irqreq(irq);
       return;
     }

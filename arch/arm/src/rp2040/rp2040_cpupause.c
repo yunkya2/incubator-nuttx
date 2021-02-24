@@ -48,12 +48,11 @@
 #if 0
 #define DPRINTF(fmt, args...) llinfo(fmt, ##args)
 #else
-//#define DPRINTF(fmt, args...) printf(fmt, ##args)
 #define DPRINTF(fmt, args...) do {} while (0)
 #endif
 
 /****************************************************************************
- * Public Data
+ * Private Data
  ****************************************************************************/
 
 /* These spinlocks are used in the SMP configuration in order to implement
@@ -70,8 +69,46 @@
  * so that it will be ready for the next pause operation.
  */
 
-volatile spinlock_t g_cpu_wait[CONFIG_SMP_NCPUS];
-volatile spinlock_t g_cpu_paused[CONFIG_SMP_NCPUS];
+static volatile spinlock_t g_cpu_wait[CONFIG_SMP_NCPUS];
+static volatile spinlock_t g_cpu_paused[CONFIG_SMP_NCPUS];
+
+/****************************************************************************
+ * Name: rp2040_handle_irqreq
+ *
+ * Description:
+ *   If an irq handling request is found on cpu, call up_enable_irq() or
+ *   up_disable_irq().
+ *
+ * Input Parameters:
+ *   irqreq - The IRQ number to be handled (>0 : enable / <0 : disable)
+ *
+ ****************************************************************************/
+
+static void rp2040_handle_irqreq(int irqreq)
+{
+  DEBUGASSERT(up_cpu_index() == 0);
+
+  /* Unlock the spinlock first */
+
+  spin_unlock(&g_cpu_paused[0]);
+
+  /* Then wait for the spinlock to be released */
+
+  spin_lock(&g_cpu_wait[0]);
+
+  if (irqreq > 0)
+    {
+      up_enable_irq(irqreq);
+    }
+  else
+    {
+      up_disable_irq(-irqreq);
+    }
+
+  /* Finally unlock the spinlock */
+
+  spin_unlock(&g_cpu_wait[0]);
+}
 
 /****************************************************************************
  * Public Functions
@@ -189,19 +226,38 @@ int up_cpu_paused(int cpu)
  *
  ****************************************************************************/
 
-#include <arch/board/board.h>
-#include "hardware/rp2040_io_bank0.h"
-#include "hardware/rp2040_sio.h"
-
 int arm_pause_handler(int irq, void *c, FAR void *arg)
 {
-//  if (up_cpu_index() == 1)
-//    putreg32(1 << BOARD_GPIO_LED_PIN, RP2040_SIO_GPIO_OUT_SET);
-//printf("arm_pause_handler %d %d\n", irq, up_cpu_index());
   int cpu = up_cpu_index();
+  int irqreq;
+  uint32_t stat;
 
-  getreg32(RP2040_SIO_FIFO_ST);
-  getreg32(RP2040_SIO_FIFO_RD);
+  stat = getreg32(RP2040_SIO_FIFO_ST);
+  if (stat & (RP2040_SIO_FIFO_ST_ROE | RP2040_SIO_FIFO_ST_WOF))
+    {
+      /* Clear sticky flag */
+
+      putreg32(0, RP2040_SIO_FIFO_ST);
+    }
+
+  if (!(stat & RP2040_SIO_FIFO_ST_VLD))
+    {
+      /* No data received */
+
+      return OK;
+    }
+
+  irqreq = getreg32(RP2040_SIO_FIFO_RD);
+
+  if (irqreq != 0)
+    {
+      /* Handle IRQ enable/disable request */
+
+      rp2040_handle_irqreq(irqreq);
+      return OK;
+    }
+
+  DPRINTF("cpu%d will be paused \n", cpu);
 
   /* Check for false alarms.  Such false could occur as a consequence of
    * some deadlock breaking logic that might have already serviced the SG2
@@ -251,16 +307,15 @@ int arm_pause_handler(int irq, void *c, FAR void *arg)
 
 int up_cpu_pause(int cpu)
 {
-//printf("up_cpu_pause %d %d\n", cpu, up_cpu_index());
   DPRINTF("cpu=%d\n", cpu);
+
+  DEBUGASSERT(cpu >= 0 && cpu < CONFIG_SMP_NCPUS && cpu != this_cpu());
 
 #ifdef CONFIG_SCHED_INSTRUMENTATION
   /* Notify of the pause event */
 
   sched_note_cpu_pause(this_task(), cpu);
 #endif
-
-  DEBUGASSERT(cpu >= 0 && cpu < CONFIG_SMP_NCPUS && cpu != this_cpu());
 
   /* Take the both spinlocks.  The g_cpu_wait spinlock will prevent the SGI2
    * handler from returning until up_cpu_resume() is called; g_cpu_paused
@@ -276,18 +331,17 @@ int up_cpu_pause(int cpu)
 
   DEBUGASSERT(cpu != up_cpu_index());
 
-  /* Generate Pause IRQ to CPU(cpu) */
+  /* Generate IRQ for CPU(cpu) */
 
   while (!(getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_RDY))
     ;
-  putreg32(0x12345678, RP2040_SIO_FIFO_WR);
+  putreg32(0, RP2040_SIO_FIFO_WR);
 
   /* Wait for the other CPU to unlock g_cpu_paused meaning that
    * it is fully paused and ready for up_cpu_resume();
    */
 
   spin_lock(&g_cpu_paused[cpu]);
-
   spin_unlock(&g_cpu_paused[cpu]);
 
   /* On successful return g_cpu_wait will be locked, the other CPU will be
@@ -319,16 +373,15 @@ int up_cpu_pause(int cpu)
 
 int up_cpu_resume(int cpu)
 {
-//printf("up_cpu_resume %d %d\n", cpu, up_cpu_index());
   DPRINTF("cpu=%d\n", cpu);
+
+  DEBUGASSERT(cpu >= 0 && cpu < CONFIG_SMP_NCPUS && cpu != this_cpu());
 
 #ifdef CONFIG_SCHED_INSTRUMENTATION
   /* Notify of the resume event */
 
   sched_note_cpu_resume(this_task(), cpu);
 #endif
-
-  DEBUGASSERT(cpu >= 0 && cpu < CONFIG_SMP_NCPUS && cpu != this_cpu());
 
   /* Release the spinlock.  Releasing the spinlock will cause the SGI2
    * handler on 'cpu' to continue and return from interrupt to the newly
@@ -339,57 +392,46 @@ int up_cpu_resume(int cpu)
               !spin_islocked(&g_cpu_paused[cpu]));
 
   spin_unlock(&g_cpu_wait[cpu]);
-
   return 0;
 }
 
-
 /****************************************************************************
- * Name: up_send_irqreq()
+ * Name: rp2040_send_irqreq()
  *
  * Description:
- *   Send up_enable_irq() / up_disable_irq() request to the specified cpu
+ *   Send up_enable_irq() / up_disable_irq() request to the Core #0
  *
  *   This function is called from up_enable_irq() or up_disable_irq()
  *   to be handled on specified CPU. Locking protocol in the sequence is
  *   the same as up_pause_cpu() plus up_resume_cpu().
  *
  * Input Parameters:
- *   idx - The request index (0: enable, 1: disable)
- *   irq - The IRQ number to be handled
- *   cpu - The index of the CPU which will handle the request
+ *   irqreq - The IRQ number to be handled (>0 : enable / <0 : disable)
  *
  ****************************************************************************/
 
-void rp2040_send_irqreq(int irq)
+void rp2040_send_irqreq(int irqreq)
 {
-printf("send_irqreq %d\n", irq);
-#if 0
-  DEBUGASSERT(cpu >= 0 && cpu < CONFIG_SMP_NCPUS && cpu != this_cpu());
-
   /* Wait for the spinlocks to be released */
 
-  spin_lock(&g_cpu_wait[cpu]);
-  spin_lock(&g_cpu_paused[cpu]);
+  spin_lock(&g_cpu_wait[0]);
+  spin_lock(&g_cpu_paused[0]);
 
-  /* Set irq for the cpu */
+  /* Send IRQ number to Core #0 */
 
-  g_irq_to_handle[cpu][idx] = irq;
-
-  /* Generate IRQ for CPU(cpu) */
-
-  putreg32(1, CXD56_CPU_P2_INT + (4 * cpu));
+  while (!(getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_RDY))
+    ;
+  putreg32(irqreq, RP2040_SIO_FIFO_WR);
 
   /* Wait for the handler is executed on cpu */
 
-  spin_lock(&g_cpu_paused[cpu]);
-  spin_unlock(&g_cpu_paused[cpu]);
+  spin_lock(&g_cpu_paused[0]);
+  spin_unlock(&g_cpu_paused[0]);
 
   /* Finally unlock the spinlock to proceed the handler */
 
-  spin_unlock(&g_cpu_wait[cpu]);
+  spin_unlock(&g_cpu_wait[0]);
   return;
-#endif
 }
 
 #endif /* CONFIG_SMP */
