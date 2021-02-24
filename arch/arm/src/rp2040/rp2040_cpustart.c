@@ -42,7 +42,6 @@
 #include "arm_internal.h"
 
 #include "hardware/rp2040_memorymap.h"
-
 #include "hardware/rp2040_sio.h"
 #include "hardware/rp2040_psm.h"
 
@@ -76,15 +75,54 @@ extern int arm_pause_handler(int irq, void *c, FAR void *arg);
  * Private Functions
  ****************************************************************************/
 
-void fifo_drain(void)
+/****************************************************************************
+ * Name: fifo_drain
+ *
+ * Description:
+ *   Drain all data in the inter-processor FIFO
+ ****************************************************************************/
+
+static void fifo_drain(void)
 {
-  uint32_t rcv;
+  putreg32(0, RP2040_SIO_FIFO_ST);
 
   while (getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_VLD)
     {
-      rcv = getreg32(RP2040_SIO_FIFO_RD);
+      getreg32(RP2040_SIO_FIFO_RD);
     }
+
   __asm__ volatile ("sev");
+}
+
+/****************************************************************************
+ * Name: fifo_comm
+ *
+ * Description:
+ *   Communicate with CPU Core 1 using inter-processor FIFO for boot
+ *
+ * Input Parameters:
+ *   msg - Data to be sent to Core 1
+ *
+ * Returned Value:
+ *   true on success; false on failure.
+ *
+ ****************************************************************************/
+
+static int fifo_comm(uint32_t msg)
+{
+  uint32_t rcv;
+
+  while (!(getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_RDY))
+    ;
+  putreg32(msg, RP2040_SIO_FIFO_WR);
+  __asm__ volatile ("sev");
+
+  while (!(getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_VLD))
+    __asm__ volatile ("wfe");
+
+  rcv = getreg32(RP2040_SIO_FIFO_RD);
+
+  return msg == rcv;
 }
 
 /****************************************************************************
@@ -99,26 +137,17 @@ void fifo_drain(void)
  *
  ****************************************************************************/
 
-#include "hardware/rp2040_sio.h"
-
 static void core1_boot(void)
 {
-//  int cpu = up_cpu_index();
-//  DPRINTF("cpu = %d\n", cpu);
-
   fifo_drain();
-  *(int *)0xd0000050 = 0;
-
-  printf("cpu 1 %x\n", *(int *)0xd0000050);
 
   /* Setup NVIC */
 
   up_irqinitialize();
 
-  irq_attach(RP2040_SIO_IRQ_PROC1, arm_pause_handler, NULL);
-  printf("cpu 1 %x %x\n", *(int *)0xd0000050, *(int *)0xe000e200);
-  *(int *)0xe000e280 = 1 << 16;
+  /* Enable inter-processor FIFO interrupt */
 
+  irq_attach(RP2040_SIO_IRQ_PROC1, arm_pause_handler, NULL);
   up_enable_irq(RP2040_SIO_IRQ_PROC1);
 
   spin_unlock(&g_core1_boot);
@@ -165,28 +194,11 @@ static void core1_boot(void)
  *
  ****************************************************************************/
 
-
-int fifo_comm(uint32_t msg)
-{
-  uint32_t rcv;
-
-  while (!(getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_RDY))
-    ;
-  putreg32(msg, RP2040_SIO_FIFO_WR);
-  __asm__ volatile ("sev");
-
-  while (!(getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_VLD))
-    __asm__ volatile ("wfe");
-
-  rcv = getreg32(RP2040_SIO_FIFO_RD);
-
-  return msg == rcv;
-}
-
 int up_cpu_start(int cpu)
 {
   int i;
   struct tcb_s *tcb = current_task(cpu);
+  uint32_t core1_boot_msg[5];
 
   DPRINTF("cpu=%d\n", cpu);
 
@@ -196,39 +208,46 @@ int up_cpu_start(int cpu)
   sched_note_cpu_start(this_task(), cpu);
 #endif
 
-  putreg32(0, RP2040_SIO_SPINLOCK0);
-
   /* Reset Core 1 */
-#if 1
+
   setbits_reg32(RP2040_PSM_PROC1, RP2040_PSM_FRCE_OFF);
   while (!(getreg32(RP2040_PSM_FRCE_OFF) & RP2040_PSM_PROC1))
     ;
   clrbits_reg32(RP2040_PSM_PROC1, RP2040_PSM_FRCE_OFF);
-#endif
-
-retry:
-  fifo_drain();
-  if (!fifo_comm(0)) goto retry;
-  fifo_drain();
-  if (!fifo_comm(0)) goto retry;
-  if (!fifo_comm(1)) goto retry;
-  if (!fifo_comm(getreg32(ARMV6M_SYSCON_VECTAB))) goto retry;
-  if (!fifo_comm((uint32_t)tcb->adj_stack_ptr)) goto retry;
 
   spin_lock(&g_core1_boot);
 
-  if (!fifo_comm((uint32_t)core1_boot)) goto retry;
+  /* Send initial VTOR, MSP, PC for Core 1 boot */
 
-  *(int *)0xd0000050 = 0;
+  core1_boot_msg[0] = 0;
+  core1_boot_msg[1] = 1;
+  core1_boot_msg[2] = getreg32(ARMV6M_SYSCON_VECTAB);
+  core1_boot_msg[3] = (uint32_t)tcb->adj_stack_ptr;
+  core1_boot_msg[4] = (uint32_t)core1_boot;
+
+  do
+    {
+      fifo_drain();
+      for (i = 0; i < 5; i++)
+        {
+          if (!fifo_comm(core1_boot_msg[i]))
+            {
+              break;
+            }
+        }
+    }
+  while (i < 5);
+
   fifo_drain();
-  printf("cpu 0 %x %x\n", *(int *)0xd0000050, *(int *)0xe000e200);
 
-  *(int *)0xe000e280 = 1 << 15;
+  /* Enable inter-processor FIFO interrupt */
 
   irq_attach(RP2040_SIO_IRQ_PROC0, arm_pause_handler, NULL);
   up_enable_irq(RP2040_SIO_IRQ_PROC0);
 
   spin_lock(&g_core1_boot);
+
+  /* CPU Core 1 boot done */
 
   spin_unlock(&g_core1_boot);
 
