@@ -94,7 +94,7 @@ struct rp2040_i2cdev_s
  * Channel 1 as SCU_I2C1
  */
 
-#ifdef CONFIG_RP2040_I2C0
+//#ifdef CONFIG_RP2040_I2C0
 static struct rp2040_i2cdev_s g_i2c0dev =
 {
   .port = 0,
@@ -102,7 +102,7 @@ static struct rp2040_i2cdev_s g_i2c0dev =
   .irqid = RP2040_I2C0_IRQ,
   .refs = 0,
 };
-#endif
+//#endif
 #ifdef CONFIG_RP2040_I2C1
 static struct rp2040_i2cdev_s g_i2c1dev =
 {
@@ -239,7 +239,8 @@ static void rp2040_i2c_setfrequency(struct rp2040_i2cdev_s *priv,
   uint64_t speed;
   uint64_t t_low;
   uint64_t t_high;
-  uint32_t base = rp2040_get_i2c_baseclock(priv->port);
+//  uint32_t base = rp2040_get_i2c_baseclock(priv->port);
+  uint32_t base = BOARD_PERI_FREQ;
   uint32_t spklen;
 
   ASSERT(base);
@@ -605,7 +606,7 @@ static int rp2040_i2c_transfer(FAR struct i2c_master_s *dev,
 
   /* Disable clock gating (clock enable) */
 
-  rp2040_i2c_clock_gate_disable(priv->port);
+//  rp2040_i2c_clock_gate_disable(priv->port);
 
   for (i = 0; i < count; i++, msgs++)
     {
@@ -672,7 +673,7 @@ static int rp2040_i2c_transfer(FAR struct i2c_master_s *dev,
 
   /* Enable clock gating (clock disable) */
 
-  rp2040_i2c_clock_gate_enable(priv->port);
+//  rp2040_i2c_clock_gate_enable(priv->port);
 
   i2c_givesem(&priv->mutex);
 
@@ -779,14 +780,14 @@ struct i2c_master_s *rp2040_i2cbus_initialize(int port)
 
   flags = enter_critical_section();
 
-#ifdef CONFIG_RP2040_I2C0
+//#ifdef CONFIG_RP2040_I2C0
   if (port == 0)
     {
       priv        = &g_i2c0dev;
       priv->dev.ops = &rp2040_i2c_ops;
     }
   else
-#endif
+//#endif
 #ifdef CONFIG_RP2040_I2C1
   if (port == 1)
     {
@@ -814,8 +815,9 @@ struct i2c_master_s *rp2040_i2cbus_initialize(int port)
   priv->port      = port;
   priv->frequency = 0;
 
-  rp2040_i2c_clock_enable(priv->port);
-  priv->base_freq = rp2040_get_i2c_baseclock(priv->port);
+//  rp2040_i2c_clock_enable(priv->port);
+//  priv->base_freq = rp2040_get_i2c_baseclock(priv->port);
+  priv->base_freq = BOARD_PERI_FREQ;
 
   rp2040_i2c_disable(priv);
 
@@ -857,7 +859,7 @@ struct i2c_master_s *rp2040_i2cbus_initialize(int port)
 
   /* Enable clock gating (clock disable) */
 
-  rp2040_i2c_clock_gate_enable(port);
+//  rp2040_i2c_clock_gate_enable(port);
 
   return &priv->dev;
 }
@@ -892,10 +894,10 @@ int rp2040_i2cbus_uninitialize(FAR struct i2c_master_s *dev)
 
   /* Disable clock gating (clock enable) */
 
-  rp2040_i2c_clock_gate_disable(priv->port);
+//  rp2040_i2c_clock_gate_disable(priv->port);
 
   rp2040_i2c_disable(priv);
-  rp2040_i2c_clock_disable(priv->port);
+//  rp2040_i2c_clock_disable(priv->port);
 
   up_disable_irq(priv->irqid);
   irq_detach(priv->irqid);
