@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/rp2040/raspberrypi-pico/src/rp2040_bringup.c
+ * boards/arm/rp2040/raspberrypi-pico/src/rp2040_lcd.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -25,54 +25,63 @@
 #include <nuttx/config.h>
 
 #include <debug.h>
-#include <stddef.h>
-#include <sys/mount.h>
 
-#ifdef CONFIG_VIDEO_FB
-#  include <nuttx/video/fb.h>
-#endif
+#include <nuttx/board.h>
+#include <nuttx/lcd/lcd.h>
+#include <nuttx/lcd/ssd1306.h>
+#include <nuttx/i2c/i2c_master.h>
 
-#include "rp2040_pico.h"
+//#include "stm32.h"
+//#include "nucleo-f303ze.h"
+
+#include "rp2040_ssd1306.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#define OLED_I2C_PORT         0 /* OLED display connected to I2C0 */
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: rp2040_bringup
+ * Name: board_lcd_initialize
  ****************************************************************************/
 
-int rp2040_bringup(void)
+int board_lcd_initialize(void)
 {
-  int ret = 0;
+  int ret;
 
-//#ifdef CONFIG_CXD56_I2C_DRIVER
-//  #ifdef CONFIG_CXD56_I2C0
-  ret = board_i2cdev_initialize(0);
+  ret = board_ssd1306_initialize(OLED_I2C_PORT);
   if (ret < 0)
     {
-      _err("ERROR: Failed to initialize I2C0.\n");
+      lcderr("ERROR: Failed to initialize SSD1306\n");
+      return ret;
     }
-//  #endif
-//#endif
 
-#ifdef CONFIG_FS_PROCFS
-  /* Mount the procfs file system */
+  return OK;
+}
 
-  ret = mount(NULL, "/proc", "procfs", 0, NULL);
-  if (ret < 0)
-    {
-      serr("ERROR: Failed to mount procfs at %s: %d\n", "/proc", ret);
-    }
-#endif
+/****************************************************************************
+ * Name: board_lcd_getdev
+ ****************************************************************************/
 
-#ifdef CONFIG_VIDEO_FB
-  ret = fb_register(0, 0);
-  if (ret < 0)
-    {
-      _err("ERROR: Failed to initialize Frame Buffer Driver.\n");
-    }
-#endif
+FAR struct lcd_dev_s *board_lcd_getdev(int devno)
+{
+  return board_ssd1306_getdev();
+}
 
-  return ret;
+/****************************************************************************
+ * Name: board_lcd_uninitialize
+ ****************************************************************************/
+
+void board_lcd_uninitialize(void)
+{
+  /* TO-FIX */
 }

@@ -79,6 +79,21 @@ void rp2040_boardearlyinitialize(void)
   putreg32(1 << BOARD_GPIO_LED_PIN, RP2040_SIO_GPIO_OE_SET);
 
   putreg32(1 << BOARD_GPIO_LED_PIN, RP2040_SIO_GPIO_OUT_SET);
+
+  /* Set I2C pin */
+
+  rp2040_gpio_set_function(4,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_I2C);
+  rp2040_gpio_set_function(5,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_I2C);
+
+  modbits_reg32(RP2040_PADS_BANK0_GPIO_PUE,
+                RP2040_PADS_BANK0_GPIO_PUE|RP2040_PADS_BANK0_GPIO_PDE,
+                RP2040_PADS_BANK0_GPIO(4));
+  modbits_reg32(RP2040_PADS_BANK0_GPIO_PUE,
+                RP2040_PADS_BANK0_GPIO_PUE|RP2040_PADS_BANK0_GPIO_PDE,
+                RP2040_PADS_BANK0_GPIO(5));
+
 }
 
 /****************************************************************************
