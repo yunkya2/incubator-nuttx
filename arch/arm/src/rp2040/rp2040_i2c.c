@@ -562,7 +562,7 @@ static int rp2040_i2c_send(struct rp2040_i2cdev_s *priv, int last)
 
   /* Enable TX_EMPTY interrupt for determine transfer done. */
 
-  i2c_reg_rmw(priv, RP2040_I2C_IC_INTR_STAT_OFFSET,
+  i2c_reg_rmw(priv, RP2040_I2C_IC_INTR_MASK_OFFSET,
               RP2040_I2C_IC_INTR_STAT_R_TX_EMPTY, RP2040_I2C_IC_INTR_STAT_R_TX_EMPTY);
   leave_critical_section(flags);
 
@@ -716,9 +716,7 @@ static inline void i2c_reg_write(struct rp2040_i2cdev_s *priv,
 static inline void i2c_reg_rmw(struct rp2040_i2cdev_s *priv, uint32_t offset,
                                uint32_t val, uint32_t mask)
 {
-  uint32_t regval;
-  regval = getreg32(priv->base + offset);
-  putreg32((regval & ~mask) | val, priv->base + offset);
+  modbits_reg32(val, mask, priv->base + offset);
 }
 
 static int rp2040_i2c_disable(struct rp2040_i2cdev_s *priv)
