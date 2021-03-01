@@ -43,12 +43,10 @@
 #include "arm_arch.h"
 #include "arm_internal.h"
 
-//#include "rp2040_clock.h"
 #include "rp2040_i2c.h"
 #include "hardware/rp2040_i2c.h"
-//#include "rp2040_pinconfig.h"
 
-//#ifdef CONFIG_RP2040_I2C
+#ifdef CONFIG_RP2040_I2C
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -90,11 +88,7 @@ struct rp2040_i2cdev_s
   int              refs;       /* Reference count */
 };
 
-/* Channel 0 as SCU_I2C0
- * Channel 1 as SCU_I2C1
- */
-
-//#ifdef CONFIG_RP2040_I2C0
+#ifdef CONFIG_RP2040_I2C0
 static struct rp2040_i2cdev_s g_i2c0dev =
 {
   .port = 0,
@@ -102,7 +96,7 @@ static struct rp2040_i2cdev_s g_i2c0dev =
   .irqid = RP2040_I2C0_IRQ,
   .refs = 0,
 };
-//#endif
+#endif
 #ifdef CONFIG_RP2040_I2C1
 static struct rp2040_i2cdev_s g_i2c1dev =
 {
@@ -161,55 +155,6 @@ static inline int i2c_givesem(FAR sem_t *sem)
 }
 
 /****************************************************************************
- * Name: rp2040_i2c_pincontrol
- *
- * Description:
- *   Configure the I2C pin
- *
- * Input Parameter:
- *   on - true: enable pin, false: disable pin
- *
- ****************************************************************************/
-
-static void rp2040_i2c_pincontrol(int ch, bool on)
-{
-#if 0 /* TBD */
-  switch (ch)
-    {
-#ifdef CONFIG_RP2040_I2C0
-      case 0:
-        if (on)
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_I2C0);
-          }
-        else
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_I2C0_GPIO);
-          }
-        break;
-#endif /* CONFIG_RP2040_I2C0 */
-
-#ifdef CONFIG_RP2040_I2C1
-      case 1:
-        if (on)
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_PWMB_I2C1);
-          }
-        else
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_PWMB_GPIO);
-          }
-        break;
-#endif /* CONFIG_RP2040_I2C1 */
-
-
-      default:
-        break;
-    }
-#endif
-}
-
-/****************************************************************************
  * I2C device operations
  ****************************************************************************/
 
@@ -239,7 +184,6 @@ static void rp2040_i2c_setfrequency(struct rp2040_i2cdev_s *priv,
   uint64_t speed;
   uint64_t t_low;
   uint64_t t_high;
-//  uint32_t base = rp2040_get_i2c_baseclock(priv->port);
   uint32_t base = BOARD_PERI_FREQ;
   uint32_t spklen;
 
@@ -336,7 +280,7 @@ static void rp2040_i2c_setfrequency(struct rp2040_i2cdev_s *priv,
 static void rp2040_i2c_timeout(wdparm_t arg)
 {
   struct rp2040_i2cdev_s *priv = (struct rp2040_i2cdev_s *)arg;
-  irqstate_t flags            = enter_critical_section();
+  irqstate_t flags             = enter_critical_section();
 
   priv->error = -ENODEV;
   i2c_givesem(&priv->wait);
@@ -604,10 +548,6 @@ static int rp2040_i2c_transfer(FAR struct i2c_master_s *dev,
   ret = nxsem_get_value(&priv->wait, &semval);
   DEBUGASSERT(ret == OK && semval == 0);
 
-  /* Disable clock gating (clock enable) */
-
-//  rp2040_i2c_clock_gate_disable(priv->port);
-
   for (i = 0; i < count; i++, msgs++)
     {
       /* Pass msg descriptor via device context */
@@ -670,10 +610,6 @@ static int rp2040_i2c_transfer(FAR struct i2c_master_s *dev,
     {
       rp2040_i2c_disable(priv);
     }
-
-  /* Enable clock gating (clock disable) */
-
-//  rp2040_i2c_clock_gate_enable(priv->port);
 
   i2c_givesem(&priv->mutex);
 
@@ -778,14 +714,14 @@ struct i2c_master_s *rp2040_i2cbus_initialize(int port)
 
   flags = enter_critical_section();
 
-//#ifdef CONFIG_RP2040_I2C0
+#ifdef CONFIG_RP2040_I2C0
   if (port == 0)
     {
       priv        = &g_i2c0dev;
       priv->dev.ops = &rp2040_i2c_ops;
     }
   else
-//#endif
+#endif
 #ifdef CONFIG_RP2040_I2C1
   if (port == 1)
     {
@@ -813,8 +749,6 @@ struct i2c_master_s *rp2040_i2cbus_initialize(int port)
   priv->port      = port;
   priv->frequency = 0;
 
-//  rp2040_i2c_clock_enable(priv->port);
-//  priv->base_freq = rp2040_get_i2c_baseclock(priv->port);
   priv->base_freq = BOARD_PERI_FREQ;
 
   rp2040_i2c_disable(priv);
@@ -839,10 +773,6 @@ struct i2c_master_s *rp2040_i2cbus_initialize(int port)
 
   leave_critical_section(flags);
 
-  /* Configure pin */
-
-  rp2040_i2c_pincontrol(port, true);
-
   nxsem_init(&priv->mutex, 0, 1);
   nxsem_init(&priv->wait, 0, 0);
   nxsem_set_protocol(&priv->wait, SEM_PRIO_NONE);
@@ -854,10 +784,6 @@ struct i2c_master_s *rp2040_i2cbus_initialize(int port)
   /* Enable Interrupt Handler */
 
   up_enable_irq(priv->irqid);
-
-  /* Enable clock gating (clock disable) */
-
-//  rp2040_i2c_clock_gate_enable(port);
 
   return &priv->dev;
 }
@@ -886,16 +812,7 @@ int rp2040_i2cbus_uninitialize(FAR struct i2c_master_s *dev)
       return OK;
     }
 
-  /* Configure pin */
-
-  rp2040_i2c_pincontrol(priv->port, false);
-
-  /* Disable clock gating (clock enable) */
-
-//  rp2040_i2c_clock_gate_disable(priv->port);
-
   rp2040_i2c_disable(priv);
-//  rp2040_i2c_clock_disable(priv->port);
 
   up_disable_irq(priv->irqid);
   irq_detach(priv->irqid);
@@ -907,4 +824,4 @@ int rp2040_i2cbus_uninitialize(FAR struct i2c_master_s *dev)
   return OK;
 }
 
-//#endif /* CONFIG_RP2040_I2C */
+#endif /* CONFIG_RP2040_I2C */
