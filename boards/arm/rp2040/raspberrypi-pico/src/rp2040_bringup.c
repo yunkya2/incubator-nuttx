@@ -28,9 +28,7 @@
 #include <stddef.h>
 #include <sys/mount.h>
 
-#ifdef CONFIG_VIDEO_FB
-#  include <nuttx/video/fb.h>
-#endif
+#include <arch/board/board.h>
 
 #include "rp2040_pico.h"
 
@@ -46,15 +44,23 @@ int rp2040_bringup(void)
 {
   int ret = 0;
 
-//#ifdef CONFIG_CXD56_I2C_DRIVER
-//  #ifdef CONFIG_CXD56_I2C0
+#ifdef CONFIG_RP2040_I2C_DRIVER
+  #ifdef CONFIG_RP2040_I2C0
   ret = board_i2cdev_initialize(0);
   if (ret < 0)
     {
       _err("ERROR: Failed to initialize I2C0.\n");
     }
-//  #endif
-//#endif
+  #endif
+
+  #ifdef CONFIG_RP2040_I2C1
+  ret = board_i2cdev_initialize(1);
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize I2C1.\n");
+    }
+  #endif
+#endif
 
 #ifdef CONFIG_FS_PROCFS
   /* Mount the procfs file system */
@@ -63,14 +69,6 @@ int rp2040_bringup(void)
   if (ret < 0)
     {
       serr("ERROR: Failed to mount procfs at %s: %d\n", "/proc", ret);
-    }
-#endif
-
-#ifdef CONFIG_VIDEO_FB
-  ret = fb_register(0, 0);
-  if (ret < 0)
-    {
-      _err("ERROR: Failed to initialize Frame Buffer Driver.\n");
     }
 #endif
 

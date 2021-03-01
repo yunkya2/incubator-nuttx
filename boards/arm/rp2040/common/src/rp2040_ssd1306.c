@@ -30,10 +30,14 @@
 #include <nuttx/lcd/lcd.h>
 #include <nuttx/lcd/ssd1306.h>
 #include <nuttx/i2c/i2c_master.h>
-#include <nuttx/spi/spi.h>
 
 #include "rp2040_i2c.h"
-//#include "stm32_spi.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#define OLED_I2C_PORT         0 /* OLED display connected to I2C0 */
 
 /****************************************************************************
  * Private Data
@@ -46,22 +50,13 @@ static FAR struct lcd_dev_s    *g_lcddev;
  ****************************************************************************/
 
 /****************************************************************************
- * Name: board_ssd1306_initialize
- *
- * Description:
- *   Initialize and register the device. I2C version.
- *
- * Input Parameters:
- *   busno - The I2C bus number
- *
- * Returned Value:
- *   Zero (OK) on success; a negated errno value on failure.
- *
+ * Name: board_lcd_initialize
  ****************************************************************************/
-#ifdef CONFIG_LCD_SSD1306_I2C
-int board_ssd1306_initialize(int busno)
+
+int board_lcd_initialize(void)
 {
   FAR struct i2c_master_s *i2c;
+  const int busno = OLED_I2C_PORT;
   const int devno = 0;
 
   /* Initialize I2C */
@@ -91,20 +86,25 @@ int board_ssd1306_initialize(int busno)
       return OK;
     }
 }
-#endif
 
 /****************************************************************************
- * Name: board_ssd1306_getdev
- *
- * Description:
- *   Get the SSD1306 device driver instance
- *
- * Returned Value:
- *   Pointer to the instance
- *
+ * Name:  board_lcd_getdev
  ****************************************************************************/
 
-FAR struct lcd_dev_s *board_ssd1306_getdev(void)
+FAR struct lcd_dev_s *board_lcd_getdev(int lcddev)
 {
-  return g_lcddev;
+  if (lcddev == 0)
+    {
+      return g_lcddev;
+    }
+
+  return NULL;
+}
+
+/****************************************************************************
+ * Name:  board_lcd_uninitialize
+ ****************************************************************************/
+
+void board_lcd_uninitialize(void)
+{
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/rp2040/common/include/rp2040_ssd1306.h
+ * boards/arm/rp2040/raspberrypi-pico/include/rp2040_i2cdev.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,20 +18,28 @@
  *
  ****************************************************************************/
 
-#ifndef __BOARDS_ARM_RP2040_COMMON_INCLUDE_RP2040_SSD1306_H
-#define __BOARDS_ARM_RP2040_COMMON_INCLUDE_RP2040_SSD1306_H
+#ifndef __BOARDS_ARM_RP2040_RASPBERRYPI_PICO_INCLUDE_RP2040_I2CDEV_H
+#define __BOARDS_ARM_RP2040_RASPBERRYPI_PICO_INCLUDE_RP2040_I2CDEV_H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <stdint.h>
+
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
+
+#ifndef __ASSEMBLY__
 
 /****************************************************************************
  * Public Data
  ****************************************************************************/
 
-#ifdef __cplusplus
+#undef EXTERN
+#if defined(__cplusplus)
 #define EXTERN extern "C"
 extern "C"
 {
@@ -44,37 +52,21 @@ extern "C"
  ****************************************************************************/
 
 /****************************************************************************
- * Name: board_ssd1306_initialize
+ * Name: board_i2cdev_initialize
  *
  * Description:
- *   Initialize and register the device
- *
- * Input Parameters:
- *   busno - The I2C or SPI bus number
- *
- * Returned Value:
- *   Zero (OK) on success; a negated errno value on failure.
+ *   Initialize i2c driver and register the /dev/i2c device.
  *
  ****************************************************************************/
 
-int board_ssd1306_initialize(int busno);
-
-/****************************************************************************
- * Name: board_ssd1306_getdev
- *
- * Description:
- *   Get the SSD1306 device driver instance
- *
- * Returned Value:
- *   Pointer to the instance
- *
- ****************************************************************************/
-
-FAR struct lcd_dev_s *board_ssd1306_getdev(void);
+#ifdef CONFIG_RP2040_I2C_DRIVER
+int board_i2cdev_initialize(int bus);
+#endif
 
 #undef EXTERN
-#ifdef __cplusplus
+#if defined(__cplusplus)
 }
 #endif
 
-#endif /* __BOARDS_ARM_RP2040_COMMON_INCLUDE_RP2040_SSD1306_H */
+#endif /* __ASSEMBLY__ */
+#endif /* __BOARDS_ARM_RP2040_RASPBERRYPI_PICO_INCLUDE_RP2040_I2CDEV_H */
