@@ -23,7 +23,7 @@ CSRCS += rp2040_i2cdev.c
 endif
 
 ifeq ($(CONFIG_LCD_SSD1306),y)
-  CSRCS += rp2040_ssd1306.c
+CSRCS += rp2040_ssd1306.c
 endif
 
 DEPPATH += --dep-path src

@@ -65,13 +65,6 @@ void rp2040_boardearlyinitialize(void)
   clrbits_reg32(RP2040_PADS_BANK0_GPIO_IE, RP2040_PADS_BANK0_GPIO(28));
   clrbits_reg32(RP2040_PADS_BANK0_GPIO_IE, RP2040_PADS_BANK0_GPIO(29));
 
-  /* Set default UART TX,RX pin */
-
-  rp2040_gpio_set_function(BOARD_GPIO_UART_PIN,
-                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_UART);
-  rp2040_gpio_set_function(BOARD_GPIO_UART_PIN + 1,
-                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_UART);
-
   /* Set board LED pin */
 
   rp2040_gpio_set_function(BOARD_GPIO_LED_PIN,
@@ -80,20 +73,63 @@ void rp2040_boardearlyinitialize(void)
 
   putreg32(1 << BOARD_GPIO_LED_PIN, RP2040_SIO_GPIO_OUT_SET);
 
-  /* Set I2C pin */
+  /* Set default UART pin */
 
-  rp2040_gpio_set_function(4,
-                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_I2C);
-  rp2040_gpio_set_function(5,
-                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_I2C);
+#ifdef CONFIG_RP2040_UART0
+#if CONFIG_RP2040_UART0_PIN >= 0
+  rp2040_gpio_set_function(CONFIG_RP2040_UART0_PIN,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_UART); /* TX */
+  rp2040_gpio_set_function(CONFIG_RP2040_UART0_PIN + 1,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_UART); /* RX */
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
+  rp2040_gpio_set_function(CONFIG_RP2040_UART0_PIN + 2,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_UART); /* CTS */
+#endif
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+  rp2040_gpio_set_function(CONFIG_RP2040_UART0_PIN + 3,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_UART); /* RTS */
+#endif
+#endif
+#endif
 
-  modbits_reg32(RP2040_PADS_BANK0_GPIO_PUE,
-                RP2040_PADS_BANK0_GPIO_PUE|RP2040_PADS_BANK0_GPIO_PDE,
-                RP2040_PADS_BANK0_GPIO(4));
-  modbits_reg32(RP2040_PADS_BANK0_GPIO_PUE,
-                RP2040_PADS_BANK0_GPIO_PUE|RP2040_PADS_BANK0_GPIO_PDE,
-                RP2040_PADS_BANK0_GPIO(5));
+#ifdef CONFIG_RP2040_UART1
+#if CONFIG_RP2040_UART1_PIN >= 0
+  rp2040_gpio_set_function(CONFIG_RP2040_UART1_PIN,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_UART); /* TX */
+  rp2040_gpio_set_function(CONFIG_RP2040_UART1_PIN + 1,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_UART); /* RX */
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
+  rp2040_gpio_set_function(CONFIG_RP2040_UART1_PIN + 2,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_UART); /* CTS */
+#endif
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+  rp2040_gpio_set_function(CONFIG_RP2040_UART1_PIN + 3,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_UART); /* RTS */
+#endif
+#endif
+#endif
 
+  /* Set default I2C pin */
+
+#ifdef CONFIG_RP2040_I2C0
+  rp2040_gpio_set_function(CONFIG_RP2040_I2C0_PIN,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_I2C);  /* SDA */
+  rp2040_gpio_set_function(CONFIG_RP2040_I2C0_PIN + 1,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_I2C);  /* SCL */
+
+  rp2040_gpio_set_pulls(CONFIG_RP2040_I2C0_PIN, false, true); /* Pull down */
+  rp2040_gpio_set_pulls(CONFIG_RP2040_I2C0_PIN + 1, false, true);
+#endif
+
+#ifdef CONFIG_RP2040_I2C1
+  rp2040_gpio_set_function(CONFIG_RP2040_I2C1_PIN,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_I2C);  /* SDA */
+  rp2040_gpio_set_function(CONFIG_RP2040_I2C1_PIN + 1,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_I2C);  /* SCL */
+
+  rp2040_gpio_set_pulls(CONFIG_RP2040_I2C1_PIN, false, true); /* Pull down */
+  rp2040_gpio_set_pulls(CONFIG_RP2040_I2C1_PIN + 1, false, true);
+#endif
 }
 
 /****************************************************************************
