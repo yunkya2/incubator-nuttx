@@ -126,6 +126,34 @@ void rp2040_boardearlyinitialize(void)
   rp2040_gpio_set_pulls(CONFIG_RP2040_I2C1_GPIO, false, true); /* Pull down */
   rp2040_gpio_set_pulls(CONFIG_RP2040_I2C1_GPIO + 1, false, true);
 #endif
+
+  /* Set default SPI pin */
+
+#if defined(CONFIG_RP2040_SPI0) && CONFIG_RP2040_SPI0_GPIO >= 0
+  rp2040_gpio_set_function(CONFIG_RP2040_SPI0_GPIO,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SPI);  /* RX */
+  rp2040_gpio_set_function(CONFIG_RP2040_SPI0_GPIO + 1,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SPI);  /* CSn */
+  rp2040_gpio_set_function(CONFIG_RP2040_SPI0_GPIO + 2,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SPI);  /* SCK */
+  rp2040_gpio_set_function(CONFIG_RP2040_SPI0_GPIO + 3,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SPI);  /* TX */
+
+  /* TBD */
+#endif
+
+#if defined(CONFIG_RP2040_SPI1) &&  CONFIG_RP2040_SPI1_GPIO >= 0
+  rp2040_gpio_set_function(CONFIG_RP2040_SPI1_GPIO,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SPI);  /* RX */
+  rp2040_gpio_set_function(CONFIG_RP2040_SPI1_GPIO + 1,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SPI);  /* CSn */
+  rp2040_gpio_set_function(CONFIG_RP2040_SPI1_GPIO + 2,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SPI);  /* SCK */
+  rp2040_gpio_set_function(CONFIG_RP2040_SPI1_GPIO + 3,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SPI);  /* TX */
+
+  /* TBD */
+#endif
 }
 
 /****************************************************************************

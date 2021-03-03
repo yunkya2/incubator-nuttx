@@ -64,11 +64,21 @@ int rp2040_bringup(void)
 #endif
 
 #ifdef CONFIG_RP2040_SPI
+  #ifdef CONFIG_RP2040_SPI0
   ret = board_spidev_initialize(0);
   if (ret < 0)
     {
       _err("ERROR: Failed to initialize SPI0.\n");
     }
+  #endif
+
+  #ifdef CONFIG_RP2040_SPI1
+  ret = board_spidev_initialize(1);
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize SPI1.\n");
+    }
+  #endif
 #endif
 
 #ifdef CONFIG_FS_PROCFS
