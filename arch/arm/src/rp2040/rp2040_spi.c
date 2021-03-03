@@ -652,12 +652,12 @@ static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
       /* Enable SPI HW */
 
       cr1val = spi_getreg(priv, RP2040_SPI_SSPCR1_OFFSET);
-      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, cr1val | SPI_CR1_SSE);
+      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, cr1val | RP2040_SPI_SSPCR1_SSE);
     }
 
   /* Wait while the TX FIFO is full */
 
-  while (!(spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & SPI_SR_TNF));
+  while (!(spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & RP2040_SPI_SSPSR_TNF));
 
   /* Write the byte to the TX FIFO */
 
@@ -665,7 +665,7 @@ static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
 
   /* Wait for the RX FIFO not empty */
 
-  while (!(spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & SPI_SR_RNE));
+  while (!(spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & RP2040_SPI_SSPSR_RNE));
 
   /* Get the value from the RX FIFO and return it */
 
@@ -746,7 +746,7 @@ static void spi_do_exchange(FAR struct spi_dev_s *dev,
       /* Enable SPI HW */
 
       regval = spi_getreg(priv, RP2040_SPI_SSPCR1_OFFSET);
-      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval | SPI_CR1_SSE);
+      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval | RP2040_SPI_SSPCR1_SSE);
     }
 
   while (nwords || rxpending)
@@ -757,7 +757,7 @@ static void spi_do_exchange(FAR struct spi_dev_s *dev,
        */
 
       spiinfo("TX: rxpending: %" PRId32 " nwords: %d\n", rxpending, nwords);
-      while ((spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & SPI_SR_TNF) &&
+      while ((spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & RP2040_SPI_SSPSR_TNF) &&
              (rxpending < RP2040_SPI_FIFOSZ) && nwords)
         {
           if (txbuffer)
@@ -782,7 +782,7 @@ static void spi_do_exchange(FAR struct spi_dev_s *dev,
        */
 
       spiinfo("RX: rxpending: %" PRId32 "\n", rxpending);
-      while (spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & SPI_SR_RNE)
+      while (spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & RP2040_SPI_SSPSR_RNE)
         {
           data = spi_getreg(priv, RP2040_SPI_SSPDR_OFFSET);
           if (rxbuffer)
@@ -1198,7 +1198,7 @@ FAR struct spi_dev_s *rp2040_spibus_initialize(int port)
 
   /* Configure 8-bit SPI mode */
 
-  spi_putreg(priv, RP2040_SPI_SSPCR0_OFFSET, SPI_CR0_DSS_8BIT | SPI_CR0_FRF_SPI);
+  spi_putreg(priv, RP2040_SPI_SSPCR0_OFFSET, RP2040_SPI_SSPCR0_DSS_8BIT | RP2040_SPI_SSPCR0_FRF_SPI);
 
   /* Disable SPI and all interrupts (we'll poll for all data) */
 
@@ -1232,7 +1232,7 @@ FAR struct spi_dev_s *rp2040_spibus_initialize(int port)
     {
 #endif
       regval = spi_getreg(priv, RP2040_SPI_SSPCR1_OFFSET);
-      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval | SPI_CR1_SSE);
+      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval | RP2040_SPI_SSPCR1_SSE);
 #ifdef CONFIG_RP2040_SPI3_SCUSEQ
     }
 #endif
@@ -1359,21 +1359,21 @@ void spi_flush(FAR struct spi_dev_s *dev)
       /* Enable SPI HW */
 
       regval = spi_getreg(priv, RP2040_SPI_SSPCR1_OFFSET);
-      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval | SPI_CR1_SSE);
+      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval | RP2040_SPI_SSPCR1_SSE);
     }
 
   /* Wait for the TX FIFO not full indication */
 
-  while (!(spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & SPI_SR_TNF));
+  while (!(spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & RP2040_SPI_SSPSR_TNF));
   spi_putreg(priv, RP2040_SPI_SSPDR_OFFSET, 0xff);
 
   /* Wait until TX FIFO and TX shift buffer are empty */
 
-  while (spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & SPI_SR_BSY);
+  while (spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & RP2040_SPI_SSPSR_BSY);
 
   /* Wait until RX FIFO is not empty */
 
-  while (!(spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & SPI_SR_RNE));
+  while (!(spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & RP2040_SPI_SSPSR_RNE));
 
   /* Then read and discard bytes until the RX FIFO is empty */
 
@@ -1381,7 +1381,7 @@ void spi_flush(FAR struct spi_dev_s *dev)
     {
       spi_getreg(priv, RP2040_SPI_SSPDR_OFFSET);
     }
-  while (spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & SPI_SR_RNE);
+  while (spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & RP2040_SPI_SSPSR_RNE);
 
   if (priv->port == 3)
     {
@@ -1423,7 +1423,7 @@ static void spi_dmaexchange(FAR struct spi_dev_s *dev,
       /* Enable SPI HW */
 
       regval = spi_getreg(priv, RP2040_SPI_SSPCR1_OFFSET);
-      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval | SPI_CR1_SSE);
+      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval | RP2040_SPI_SSPCR1_SSE);
     }
 
   /* Setup DMAs */
@@ -1542,7 +1542,7 @@ static void spi_dmatxsetup(FAR struct rp2040_spidev_s *priv,
   uint32_t val;
 
   val = spi_getreg(priv, RP2040_SPI_SSPDMACR_OFFSET);
-  val |= SPI_DMACR_TXDMAE;
+  val |= RP2040_SPI_SSPDMACR_TXDMAE;
   spi_putreg(priv, RP2040_SPI_SSPDMACR_OFFSET, val);
 
   dst = (priv->spibase + RP2040_SPI_SSPDR_OFFSET) & 0x03ffffffu;
@@ -1565,7 +1565,7 @@ static void spi_dmarxsetup(FAR struct rp2040_spidev_s *priv,
   uint32_t val;
 
   val = spi_getreg(priv, RP2040_SPI_SSPDMACR_OFFSET);
-  val |= SPI_DMACR_RXDMAE;
+  val |= RP2040_SPI_SSPDMACR_RXDMAE;
   spi_putreg(priv, RP2040_SPI_SSPDMACR_OFFSET, val);
 
   src = (priv->spibase + RP2040_SPI_SSPDR_OFFSET) & 0x03ffffffu;
@@ -1599,7 +1599,7 @@ static void spi_dmatrxwait(FAR struct rp2040_spidev_s *priv)
   rp2040_dmastop(priv->rxdmach);
 
   val = spi_getreg(priv, RP2040_SPI_SSPDMACR_OFFSET);
-  val &= ~(SPI_DMACR_RXDMAE | SPI_DMACR_TXDMAE);
+  val &= ~(RP2040_SPI_SSPDMACR_RXDMAE | RP2040_SPI_SSPDMACR_TXDMAE);
   spi_putreg(priv, RP2040_SPI_SSPDMACR_OFFSET, val);
 }
 
