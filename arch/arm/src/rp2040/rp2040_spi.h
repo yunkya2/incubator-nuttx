@@ -32,7 +32,7 @@
 #include "rp2040_dmac.h"
 #endif
 
-#if defined(CONFIG_RP2040_SPI0) || defined(CONFIG_RP2040_SPI3)
+#if defined(CONFIG_RP2040_SPI0)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -151,19 +151,6 @@ int rp2040_spi0cmddata(FAR struct spi_dev_s *dev,
 #endif
 #endif
 
-#ifdef CONFIG_RP2040_SPI3
-void  rp2040_spi3select(FAR struct spi_dev_s *dev,
-                       uint32_t devid,
-                       bool selected);
-uint8_t rp2040_spi3status(FAR struct spi_dev_s *dev,
-                         uint32_t devid);
-#ifdef CONFIG_SPI_CMDDATA
-int rp2040_spi3cmddata(FAR struct spi_dev_s *dev,
-                      uint32_t devid,
-                      bool cmd);
-#endif
-#endif
-
 /****************************************************************************
  * Name: spi_flush
  *
@@ -205,11 +192,6 @@ void spi_flush(FAR struct spi_dev_s *dev);
 #ifdef CONFIG_SPI_CALLBACK
 #ifdef CONFIG_RP2040_SPI0
 int rp2040_spi0register(FAR struct spi_dev_s *dev, spi_mediachange_t callback,
-                       FAR void *arg);
-#endif
-
-#ifdef CONFIG_RP2040_SPI3
-int rp2040_spi3register(FAR struct spi_dev_s *dev, spi_mediachange_t callback,
                        FAR void *arg);
 #endif
 #endif

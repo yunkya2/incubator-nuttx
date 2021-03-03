@@ -63,6 +63,10 @@
 #define __unused __attribute__((unused))
 #endif
 
+/* 8 frame FIFOs for both transmit and receive */
+
+#define RP2040_SPI_FIFOSZ        8
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -285,48 +289,6 @@ static struct rp2040_spidev_s g_spi0dev =
 };
 #endif
 
-#ifdef CONFIG_RP2040_SPI3
-static const struct spi_ops_s g_spi3ops =
-{
-  .lock              = spi_lock,
-  .select            = rp2040_spi3select,   /* Provided externally */
-  .setfrequency      = spi_setfrequency,
-  .setmode           = spi_setmode,
-  .setbits           = spi_setbits,
-  .status            = rp2040_spi3status,   /* Provided externally */
-#ifdef CONFIG_SPI_CMDDATA
-  .cmddata           = rp2040_spi3cmddata,  /* Provided externally */
-#endif
-  .send              = spi_send,
-#ifdef CONFIG_SPI_EXCHANGE
-  .exchange          = spi_exchange,
-#else
-  .sndblock          = spi_sndblock,
-  .recvblock         = spi_recvblock,
-#endif
-#ifdef CONFIG_SPI_CALLBACK
-  .registercallback  = rp2040_spi3register, /* Provided externally */
-#else
-  .registercallback  = 0,                  /* Not implemented */
-#endif
-};
-
-static struct rp2040_spidev_s g_spi3dev =
-{
-  .spidev            =
-                        {
-                         &g_spi3ops
-                        },
-  .spibase           = RP2040_SCU_SPI_BASE,
-  .spibasefreq       = 0,
-  .port              = 3,
-  .initialized       = 0,
-#ifdef CONFIG_RP2040_SPI_INTERRUPTS
-  .spiirq            = RP2040_IRQ_SCU_SPI,
-#endif
-};
-#endif
-
 /****************************************************************************
  * Public Data
  ****************************************************************************/
@@ -461,7 +423,7 @@ static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev,
 
   /* Disable clock gating (clock enable) */
 
-  rp2040_spi_clock_gate_disable(priv->port);
+//  rp2040_spi_clock_gate_disable(priv->port);
 
   /* Save the new divisor value */
 
@@ -469,7 +431,7 @@ static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev,
 
   /* Enable clock gating (clock disable) */
 
-  rp2040_spi_clock_gate_enable(priv->port);
+//  rp2040_spi_clock_gate_enable(priv->port);
 
   /* Calculate the new actual */
 
@@ -512,7 +474,7 @@ static void spi_setmode(FAR struct spi_dev_s *dev, enum spi_mode_e mode)
 
       /* Disable clock gating (clock enable) */
 
-      rp2040_spi_clock_gate_disable(priv->port);
+//      rp2040_spi_clock_gate_disable(priv->port);
 
       regval = spi_getreg(priv, RP2040_SPI_SSPCR0_OFFSET);
       regval &= ~(RP2040_SPI_SSPCR0_SPO | RP2040_SPI_SSPCR0_SPH);
@@ -540,7 +502,7 @@ static void spi_setmode(FAR struct spi_dev_s *dev, enum spi_mode_e mode)
 
             /* Enable clock gating (clock disable) */
 
-            rp2040_spi_clock_gate_enable(priv->port);
+//            rp2040_spi_clock_gate_enable(priv->port);
 
             return;
         }
@@ -549,7 +511,7 @@ static void spi_setmode(FAR struct spi_dev_s *dev, enum spi_mode_e mode)
 
       /* Enable clock gating (clock disable) */
 
-      rp2040_spi_clock_gate_enable(priv->port);
+//      rp2040_spi_clock_gate_enable(priv->port);
 
       /* Save the mode so that subsequent re-configurations will be faster */
 
@@ -587,7 +549,7 @@ static void spi_setbits(FAR struct spi_dev_s *dev, int nbits)
 
       /* Disable clock gating (clock enable) */
 
-      rp2040_spi_clock_gate_disable(priv->port);
+//      rp2040_spi_clock_gate_disable(priv->port);
 
       regval = spi_getreg(priv, RP2040_SPI_SSPCR0_OFFSET);
       regval &= ~RP2040_SPI_SSPCR0_DSS_MASK;
@@ -596,7 +558,7 @@ static void spi_setbits(FAR struct spi_dev_s *dev, int nbits)
 
       /* Enable clock gating (clock disable) */
 
-      rp2040_spi_clock_gate_enable(priv->port);
+//      rp2040_spi_clock_gate_enable(priv->port);
 
       /* Save the selection so that re-configurations will be faster
        */
@@ -645,7 +607,7 @@ static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
 
   /* Disable clock gating (clock enable) */
 
-  rp2040_spi_clock_gate_disable(priv->port);
+//  rp2040_spi_clock_gate_disable(priv->port);
 
   if (priv->port == 3)
     {
@@ -681,7 +643,7 @@ static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
 
   /* Enable clock gating (clock disable) */
 
-  rp2040_spi_clock_gate_enable(priv->port);
+//  rp2040_spi_clock_gate_enable(priv->port);
 
   return regval;
 }
@@ -739,7 +701,7 @@ static void spi_do_exchange(FAR struct spi_dev_s *dev,
 
   /* Disable clock gating (clock enable) */
 
-  rp2040_spi_clock_gate_disable(priv->port);
+//  rp2040_spi_clock_gate_disable(priv->port);
 
   if (priv->port == 3)
     {
@@ -810,7 +772,7 @@ static void spi_do_exchange(FAR struct spi_dev_s *dev,
 
   /* Enable clock gating (clock disable) */
 
-  rp2040_spi_clock_gate_enable(priv->port);
+//  rp2040_spi_clock_gate_enable(priv->port);
 }
 
 /****************************************************************************
@@ -947,52 +909,6 @@ static void rp2040_spi_pincontrol(int ch, bool on)
         else
           {
             RP2040_PIN_CONFIGS(PINCONFS_SPI1A_GPIO);
-          }
-#endif
-        break;
-#endif
-
-#ifdef CONFIG_RP2040_SPI3
-      case 3:
-        if (on)
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI3);
-          }
-        else
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI3_GPIO);
-          }
-
-#ifdef CONFIG_RP2040_SPI3_CS0
-        if (on)
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI3_CS0_X);
-          }
-        else
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI3_CS0_X_GPIO);
-          }
-#endif
-
-#ifdef CONFIG_RP2040_SPI3_CS1
-        if (on)
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI3_CS1_X);
-          }
-        else
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI3_CS1_X_GPIO);
-          }
-#endif
-
-#ifdef CONFIG_RP2040_SPI3_CS2
-        if (on)
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI3_CS2_X);
-          }
-        else
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI3_CS2_X_GPIO);
           }
 #endif
         break;
@@ -1155,11 +1071,6 @@ FAR struct spi_dev_s *rp2040_spibus_initialize(int port)
         break;
 #endif
 
-#ifdef CONFIG_RP2040_SPI3
-      case 3:
-        priv = &g_spi3dev;
-        break;
-#endif
       default:
         return NULL;
     }
@@ -1198,7 +1109,9 @@ FAR struct spi_dev_s *rp2040_spibus_initialize(int port)
 
   /* Configure 8-bit SPI mode */
 
-  spi_putreg(priv, RP2040_SPI_SSPCR0_OFFSET, RP2040_SPI_SSPCR0_DSS_8BIT | RP2040_SPI_SSPCR0_FRF_SPI);
+  spi_putreg(priv, RP2040_SPI_SSPCR0_OFFSET,
+             ((8 - 1) << RP2040_SPI_SSPCR0_DSS_SHIFT) |
+             (0 << RP2040_SPI_SSPCR0_FRF_SHIFT));
 
   /* Disable SPI and all interrupts (we'll poll for all data) */
 
@@ -1223,19 +1136,8 @@ FAR struct spi_dev_s *rp2040_spibus_initialize(int port)
 
   nxsem_init(&priv->exclsem, 0, 1);
 
-#ifdef CONFIG_RP2040_SPI3_SCUSEQ
-  /* Enable the SPI, but not enable port 3 when SCU support enabled.
-   * Because this enabler will be controlled by SCU.
-   */
-
-  if (port != 3)
-    {
-#endif
-      regval = spi_getreg(priv, RP2040_SPI_SSPCR1_OFFSET);
-      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval | RP2040_SPI_SSPCR1_SSE);
-#ifdef CONFIG_RP2040_SPI3_SCUSEQ
-    }
-#endif
+  regval = spi_getreg(priv, RP2040_SPI_SSPCR1_OFFSET);
+  spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval | RP2040_SPI_SSPCR1_SSE);
 
   for (i = 0; i < RP2040_SPI_FIFOSZ; i++)
     {
@@ -1244,7 +1146,7 @@ FAR struct spi_dev_s *rp2040_spibus_initialize(int port)
 
   /* Enable clock gating (clock disable) */
 
-  rp2040_spi_clock_gate_enable(port);
+//  rp2040_spi_clock_gate_enable(port);
 
   /* Set a initialized flag */
 
@@ -1352,7 +1254,7 @@ void spi_flush(FAR struct spi_dev_s *dev)
 
   /* Disable clock gating (clock enable) */
 
-  rp2040_spi_clock_gate_disable(priv->port);
+//  rp2040_spi_clock_gate_disable(priv->port);
 
   if (priv->port == 3)
     {
@@ -1392,7 +1294,7 @@ void spi_flush(FAR struct spi_dev_s *dev)
 
   /* Enable clock gating (clock disable) */
 
-  rp2040_spi_clock_gate_enable(priv->port);
+//  rp2040_spi_clock_gate_enable(priv->port);
 }
 
 #ifdef CONFIG_RP2040_DMAC
@@ -1416,7 +1318,7 @@ static void spi_dmaexchange(FAR struct spi_dev_s *dev,
 
   /* Disable clock gating (clock enable) */
 
-  rp2040_spi_clock_gate_disable(priv->port);
+//  rp2040_spi_clock_gate_disable(priv->port);
 
   if (priv->port == 3)
     {
@@ -1449,7 +1351,7 @@ static void spi_dmaexchange(FAR struct spi_dev_s *dev,
 
   /* Enable clock gating (clock disable) */
 
-  rp2040_spi_clock_gate_enable(priv->port);
+//  rp2040_spi_clock_gate_enable(priv->port);
 }
 
 #ifndef CONFIG_SPI_EXCHANGE
