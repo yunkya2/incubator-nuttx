@@ -151,6 +151,19 @@ int rp2040_spi0cmddata(FAR struct spi_dev_s *dev,
 #endif
 #endif
 
+#ifdef CONFIG_RP2040_SPI1
+void  rp2040_spi1select(FAR struct spi_dev_s *dev,
+                       uint32_t devid,
+                       bool selected);
+uint8_t rp2040_spi1status(FAR struct spi_dev_s *dev,
+                         uint32_t devid);
+#ifdef CONFIG_SPI_CMDDATA
+int rp2040_spi1cmddata(FAR struct spi_dev_s *dev,
+                      uint32_t devid,
+                      bool cmd);
+#endif
+#endif
+
 /****************************************************************************
  * Name: spi_flush
  *
@@ -192,7 +205,12 @@ void spi_flush(FAR struct spi_dev_s *dev);
 #ifdef CONFIG_SPI_CALLBACK
 #ifdef CONFIG_RP2040_SPI0
 int rp2040_spi0register(FAR struct spi_dev_s *dev, spi_mediachange_t callback,
-                       FAR void *arg);
+                        FAR void *arg);
+#endif
+
+#ifdef CONFIG_RP2040_SPI1
+int rp2040_spi1register(FAR struct spi_dev_s *dev, spi_mediachange_t callback,
+                        FAR void *arg);
 #endif
 #endif
 

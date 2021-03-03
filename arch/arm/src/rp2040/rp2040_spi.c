@@ -151,102 +151,6 @@ static void spi_recvblock(FAR struct spi_dev_s *dev, FAR void *buffer,
  * Private Data
  ****************************************************************************/
 
-/****************************************************************************
- * SPI Channels mapped as follows:
- * 4 - IMG SPI
- * 5 - IMG WSPI
- * 0 - SPIM (SYSIOP)
- * 3 - SCU SPI
- ****************************************************************************/
-
-#ifdef CONFIG_RP2040_SPI4
-static const struct spi_ops_s g_spi4ops =
-{
-  .lock              = spi_lock,
-  .select            = rp2040_spi4select,   /* Provided externally */
-  .setfrequency      = spi_setfrequency,
-  .setmode           = spi_setmode,
-  .setbits           = spi_setbits,
-#ifdef CONFIG_SPI_HWFEATURES
-  .hwfeatures        = 0,                  /* Not supported */
-#endif
-  .status            = rp2040_spi4status,   /* Provided externally */
-#ifdef CONFIG_SPI_CMDDATA
-  .cmddata           = rp2040_spi4cmddata,  /* Provided externally */
-#endif
-  .send              = spi_send,
-#ifdef CONFIG_SPI_EXCHANGE
-  .exchange          = spi_exchange,
-#else
-  .sndblock          = spi_sndblock,
-  .recvblock         = spi_recvblock,
-#endif
-#ifdef CONFIG_SPI_CALLBACK
-  .registercallback  = rp2040_spi4register, /* Provided externally */
-#else
-  .registercallback  = 0,                  /* Not implemented */
-#endif
-};
-
-static struct rp2040_spidev_s g_spi4dev =
-{
-  .spidev            =
-                        {
-                         &g_spi4ops
-                        },
-  .spibase           = RP2040_IMG_SPI_BASE,
-  .spibasefreq       = 0,
-  .port              = 4,
-  .initialized       = 0,
-#ifdef CONFIG_RP2040_SPI_INTERRUPTS
-  .spiirq            = RP2040_IRQ_IMG_SPI,
-#endif
-};
-
-#endif
-
-#ifdef CONFIG_RP2040_SPI5
-static const struct spi_ops_s g_spi5ops =
-{
-  .lock              = spi_lock,
-  .select            = rp2040_spi5select,   /* Provided externally */
-  .setfrequency      = spi_setfrequency,
-  .setmode           = spi_setmode,
-  .setbits           = spi_setbits,
-  .status            = rp2040_spi5status,   /* Provided externally */
-#ifdef CONFIG_SPI_CMDDATA
-  .cmddata           = rp2040_spi5cmddata,  /* Provided externally */
-#endif
-  .send              = spi_send,
-#ifdef CONFIG_SPI_EXCHANGE
-  .exchange          = spi_exchange,
-#else
-  .sndblock          = spi_sndblock,
-  .recvblock         = spi_recvblock,
-#endif
-#ifdef CONFIG_SPI_CALLBACK
-  .registercallback  = rp2040_spi5register, /* Provided externally */
-#else
-  .registercallback  = 0,                  /* Not implemented */
-#endif
-};
-
-static struct rp2040_spidev_s g_spi5dev =
-{
-  .spidev            =
-                        {
-                         &g_spi5ops
-                        },
-  .spibase           = RP2040_IMG_WSPI_BASE,
-  .spibasefreq       = 0,
-  .port              = 5,
-  .initialized       = 0,
-#ifdef CONFIG_RP2040_SPI_INTERRUPTS
-  .spiirq            = RP2040_IRQ_IMG_WSPI,
-#endif
-};
-#endif
-
 #ifdef CONFIG_RP2040_SPI0
 static const struct spi_ops_s g_spi0ops =
 {
@@ -255,6 +159,9 @@ static const struct spi_ops_s g_spi0ops =
   .setfrequency      = spi_setfrequency,
   .setmode           = spi_setmode,
   .setbits           = spi_setbits,
+#ifdef CONFIG_SPI_HWFEATURES
+  .hwfeatures        = 0,                   /* Not supported */
+#endif
   .status            = rp2040_spi0status,   /* Provided externally */
 #ifdef CONFIG_SPI_CMDDATA
   .cmddata           = rp2040_spi0cmddata,  /* Provided externally */
@@ -269,7 +176,7 @@ static const struct spi_ops_s g_spi0ops =
 #ifdef CONFIG_SPI_CALLBACK
   .registercallback  = rp2040_spi0register, /* Provided externally */
 #else
-  .registercallback  = 0,                  /* Not implemented */
+  .registercallback  = 0,                   /* Not implemented */
 #endif
 };
 
@@ -279,12 +186,57 @@ static struct rp2040_spidev_s g_spi0dev =
                         {
                          &g_spi0ops
                         },
-  .spibase           = RP2040_SPIM_BASE,
+  .spibase           = RP2040_SPI0_BASE,
   .spibasefreq       = 0,
   .port              = 0,
   .initialized       = 0,
 #ifdef CONFIG_RP2040_SPI_INTERRUPTS
   .spiirq            = RP2040_SPI0_IRQ,
+#endif
+};
+#endif
+
+#ifdef CONFIG_RP2040_SPI1
+static const struct spi_ops_s g_spi1ops =
+{
+  .lock              = spi_lock,
+  .select            = rp2040_spi1select,   /* Provided externally */
+  .setfrequency      = spi_setfrequency,
+  .setmode           = spi_setmode,
+  .setbits           = spi_setbits,
+#ifdef CONFIG_SPI_HWFEATURES
+  .hwfeatures        = 0,                   /* Not supported */
+#endif
+  .status            = rp2040_spi1status,   /* Provided externally */
+#ifdef CONFIG_SPI_CMDDATA
+  .cmddata           = rp2040_spi1cmddata,  /* Provided externally */
+#endif
+  .send              = spi_send,
+#ifdef CONFIG_SPI_EXCHANGE
+  .exchange          = spi_exchange,
+#else
+  .sndblock          = spi_sndblock,
+  .recvblock         = spi_recvblock,
+#endif
+#ifdef CONFIG_SPI_CALLBACK
+  .registercallback  = rp2040_spi1register, /* Provided externally */
+#else
+  .registercallback  = 0,                   /* Not implemented */
+#endif
+};
+
+static struct rp2040_spidev_s g_spi1dev =
+{
+  .spidev            =
+                        {
+                         &g_spi1ops
+                        },
+  .spibase           = RP2040_SPI1_BASE,
+  .spibasefreq       = 0,
+  .port              = 1,
+  .initialized       = 0,
+#ifdef CONFIG_RP2040_SPI_INTERRUPTS
+  .spiirq            = RP2040_SPI1_IRQ,
 #endif
 };
 #endif
@@ -401,11 +353,12 @@ static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev,
 
   /* Set SPI_CLOCK */
 
-  rp2040_spi_clock_gear_adjust(priv->port, frequency);
+//  rp2040_spi_clock_gear_adjust(priv->port, frequency);
 
   /* frequency = SPI_CLOCK / divisor, or divisor = SPI_CLOCK / frequency */
 
-  priv->spibasefreq = rp2040_get_spi_baseclock(priv->port);
+//  priv->spibasefreq = rp2040_get_spi_baseclock(priv->port);
+  priv->spibasefreq = BOARD_PERI_FREQ;
   divisor = priv->spibasefreq / frequency;
 
   /* "In master mode, CPSDVSRmin = 2 or larger (even numbers only)" */
@@ -603,19 +556,10 @@ static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
 {
   FAR struct rp2040_spidev_s *priv = (FAR struct rp2040_spidev_s *)dev;
   register uint32_t regval;
-  register uint32_t cr1val = 0;
 
   /* Disable clock gating (clock enable) */
 
 //  rp2040_spi_clock_gate_disable(priv->port);
-
-  if (priv->port == 3)
-    {
-      /* Enable SPI HW */
-
-      cr1val = spi_getreg(priv, RP2040_SPI_SSPCR1_OFFSET);
-      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, cr1val | RP2040_SPI_SSPCR1_SSE);
-    }
 
   /* Wait while the TX FIFO is full */
 
@@ -633,13 +577,6 @@ static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
 
   regval = spi_getreg(priv, RP2040_SPI_SSPDR_OFFSET);
   spiinfo("%04" PRIx32 "->%04" PRIx32 "\n", wd, regval);
-
-  if (priv->port == 3)
-    {
-      /* Restore SPI HW state */
-
-      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, cr1val);
-    }
 
   /* Enable clock gating (clock disable) */
 
@@ -674,7 +611,6 @@ static void spi_do_exchange(FAR struct spi_dev_s *dev,
                             size_t nwords)
 {
   FAR struct rp2040_spidev_s *priv = (FAR struct rp2040_spidev_s *)dev;
-  uint32_t regval                 = 0;
 
   union
   {
@@ -702,14 +638,6 @@ static void spi_do_exchange(FAR struct spi_dev_s *dev,
   /* Disable clock gating (clock enable) */
 
 //  rp2040_spi_clock_gate_disable(priv->port);
-
-  if (priv->port == 3)
-    {
-      /* Enable SPI HW */
-
-      regval = spi_getreg(priv, RP2040_SPI_SSPCR1_OFFSET);
-      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval | RP2040_SPI_SSPCR1_SSE);
-    }
 
   while (nwords || rxpending)
     {
@@ -761,13 +689,6 @@ static void spi_do_exchange(FAR struct spi_dev_s *dev,
 
           rxpending--;
         }
-    }
-
-  if (priv->port == 3)
-    {
-      /* Restore SPI HW state */
-
-      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval);
     }
 
   /* Enable clock gating (clock disable) */
@@ -874,152 +795,6 @@ static void spi_recvblock(FAR struct spi_dev_s *dev, FAR void *buffer,
 #endif /* !CONFIG_SPI_EXCHANGE */
 
 /****************************************************************************
- * Name: rp2040_spi_pincontrol
- *
- * Description:
- *   Configure the SPI pin
- *
- * Input Parameter:
- *   on - true: enable pin, false: disable pin
- *
- ****************************************************************************/
-
-static void rp2040_spi_pincontrol(int ch, bool on)
-{
-  switch (ch)
-    {
-#ifdef CONFIG_RP2040_SPI0
-      case 0:
-#ifdef CONFIG_RP2040_SPI0_PINMAP_DEBUG_UART
-        if (on)
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI0);
-          }
-        else
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI0_GPIO);
-          }
-#endif
-
-#ifdef CONFIG_RP2040_SPI0_PINMAP_SPIFLASH
-        if (on)
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI1A_SPI0);
-          }
-        else
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI1A_GPIO);
-          }
-#endif
-        break;
-#endif
-
-#ifdef CONFIG_RP2040_SPI4
-      case 4:
-        if (on)
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI4);
-          }
-        else
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SPI4_GPIO);
-          }
-        break;
-#endif
-
-#ifdef CONFIG_RP2040_SPI5
-      case 5:
-#ifdef CONFIG_RP2040_SPI5_PINMAP_EMMC
-        if (on)
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_EMMCA_SPI5);
-          }
-        else
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_EMMCA_GPIO);
-          }
-#endif
-
-#ifdef CONFIG_RP2040_SPI5_PINMAP_SDIO
-        if (on)
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SDIOA_SPI5);
-          }
-        else
-          {
-            RP2040_PIN_CONFIGS(PINCONFS_SDIOA_GPIO);
-          }
-#endif
-        break;
-#endif
-      default:
-        break;
-    }
-}
-
-#ifdef CONFIG_RP2040_SPI4
-
-/****************************************************************************
- * Name: spi4_colockchange
- *
- * Description:
- *   pm event callback for SPI4
- *
- * Input Parameter:
- *   id - PM callback ID
- *
- ****************************************************************************/
-
-static int spi4_colockchange(uint8_t id)
-{
-  FAR struct rp2040_spidev_s *priv = &g_spi4dev;
-
-  switch (id)
-    {
-      case RP2040_PM_CALLBACK_ID_CLK_CHG_END:
-        spi_setfrequency(&priv->spidev, priv->frequency);
-        break;
-      default:
-        break;
-    }
-
-  return 0;
-}
-
-#endif
-
-#ifdef CONFIG_RP2040_SPI5
-
-/****************************************************************************
- * Name: spi5_colockchange
- *
- * Description:
- *   pm event callback for SPI5
- *
- * Input Parameter:
- *   id - PM callback ID
- *
- ****************************************************************************/
-
-static int spi5_colockchange(uint8_t id)
-{
-  FAR struct rp2040_spidev_s *priv = &g_spi5dev;
-
-  switch (id)
-    {
-      case RP2040_PM_CALLBACK_ID_CLK_CHG_END:
-        spi_setfrequency(&priv->spidev, priv->frequency);
-        break;
-      default:
-        break;
-    }
-
-  return 0;
-}
-
-#endif
-
-/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -1045,29 +820,15 @@ FAR struct spi_dev_s *rp2040_spibus_initialize(int port)
 
   switch (port)
     {
-#ifdef CONFIG_RP2040_SPI4
-      case 4:
-        priv = &g_spi4dev;
-        if (!priv->initialized)
-          {
-            rp2040_pm_register_callback(PM_CLOCK_APP_SPI, spi4_colockchange);
-          }
-        break;
-#endif
-
-#ifdef CONFIG_RP2040_SPI5
-      case 5:
-        priv = &g_spi5dev;
-        if (!priv->initialized)
-          {
-            rp2040_pm_register_callback(PM_CLOCK_APP_WSPI, spi5_colockchange);
-          }
-        break;
-#endif
-
 #ifdef CONFIG_RP2040_SPI0
       case 0:
         priv = &g_spi0dev;
+        break;
+#endif
+
+#ifdef CONFIG_RP2040_SPI1
+      case 1:
+        priv = &g_spi1dev;
         break;
 #endif
 
@@ -1084,8 +845,9 @@ FAR struct spi_dev_s *rp2040_spibus_initialize(int port)
 
   /* Configure clocking */
 
-  rp2040_spi_clock_enable(port);
-  priv->spibasefreq = rp2040_get_spi_baseclock(port);
+//  rp2040_spi_clock_enable(port);
+//  priv->spibasefreq = rp2040_get_spi_baseclock(port);
+  priv->spibasefreq = BOARD_PERI_FREQ;
 
   /* DMA settings */
 
@@ -1105,7 +867,7 @@ FAR struct spi_dev_s *rp2040_spibus_initialize(int port)
 
   /* Configure pin */
 
-  rp2040_spi_pincontrol(port, true);
+//  rp2040_spi_pincontrol(port, true);
 
   /* Configure 8-bit SPI mode */
 
@@ -1250,19 +1012,10 @@ void rp2040_spi_dmaconfig(int port, int chtype, DMA_HANDLE handle,
 void spi_flush(FAR struct spi_dev_s *dev)
 {
   FAR struct rp2040_spidev_s *priv = (FAR struct rp2040_spidev_s *)dev;
-  uint32_t regval                 = 0;
 
   /* Disable clock gating (clock enable) */
 
 //  rp2040_spi_clock_gate_disable(priv->port);
-
-  if (priv->port == 3)
-    {
-      /* Enable SPI HW */
-
-      regval = spi_getreg(priv, RP2040_SPI_SSPCR1_OFFSET);
-      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval | RP2040_SPI_SSPCR1_SSE);
-    }
 
   /* Wait for the TX FIFO not full indication */
 
@@ -1284,13 +1037,6 @@ void spi_flush(FAR struct spi_dev_s *dev)
       spi_getreg(priv, RP2040_SPI_SSPDR_OFFSET);
     }
   while (spi_getreg(priv, RP2040_SPI_SSPSR_OFFSET) & RP2040_SPI_SSPSR_RNE);
-
-  if (priv->port == 3)
-    {
-      /* Restore SPI HW state */
-
-      spi_putreg(priv, RP2040_SPI_SSPCR1_OFFSET, regval);
-    }
 
   /* Enable clock gating (clock disable) */
 

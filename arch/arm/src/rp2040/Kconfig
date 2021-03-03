@@ -79,6 +79,12 @@ config RP2040_SPI
 
 if RP2040_SPI
 
+config RP2040_SPI0
+	bool "SPI0"
+
+config RP2040_SPI1
+	bool "SPI1"
+
 config RP2040_SPI_DRIVER
 	bool "SPI character driver"
 	default y
