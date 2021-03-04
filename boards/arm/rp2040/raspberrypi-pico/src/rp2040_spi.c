@@ -75,16 +75,12 @@ void rp2040_spi0select(FAR struct spi_dev_s *dev, uint32_t devid,
 {
   spiinfo("devid: %d CS: %s\n", (int)devid,
           selected ? "assert" : "de-assert");
-#if 1
-  rp2040_gpio_set_function(20,
-                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SIO);
-  putreg32(1 << 20, RP2040_SIO_GPIO_OE_SET);
 
   if (selected)
     putreg32(1 << 20, RP2040_SIO_GPIO_OUT_CLR);
   else
     putreg32(1 << 20, RP2040_SIO_GPIO_OUT_SET);
-#endif
+
 }
 
 uint8_t rp2040_spi0status(FAR struct spi_dev_s *dev, uint32_t devid)
