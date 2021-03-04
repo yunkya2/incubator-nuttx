@@ -43,6 +43,10 @@
  *
  ****************************************************************************/
 
+#include "hardware/rp2040_pads_bank0.h"
+#include "hardware/rp2040_io_bank0.h"
+#include "hardware/rp2040_sio.h"
+
 int board_spidev_initialize(int port)
 {
   int ret;
@@ -64,6 +68,20 @@ int board_spidev_initialize(int port)
     {
       spierr("ERROR: Failed to register spi%d: %d\n", port, ret);
     }
+
+  rp2040_gpio_set_function(20,
+                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SIO);
+  putreg32(1 << 20, RP2040_SIO_GPIO_OE_SET);
+  putreg32(1 << 20, RP2040_SIO_GPIO_OUT_SET);
+
+  if (port == 0) {
+    ret = mmcsd_spislotinitialize(0, 0, spi);
+    if (ret < 0)
+      {
+        spierr("ERROR: Failed to bind SPI device to MMC/SD slot %d: %d\n", 0, ret);
+        return ret;
+      }
+  }
 
   return ret;
 }

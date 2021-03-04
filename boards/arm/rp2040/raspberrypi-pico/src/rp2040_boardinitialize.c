@@ -140,6 +140,8 @@ void rp2040_boardearlyinitialize(void)
                            RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SPI);  /* TX */
 
   /* TBD */
+  rp2040_gpio_set_pulls(CONFIG_RP2040_SPI0_GPIO, true, false);  /* Pull up */
+  rp2040_gpio_set_pulls(CONFIG_RP2040_SPI0_GPIO + 3, true, false);  /* Pull up */
 #endif
 
 #if defined(CONFIG_RP2040_SPI1) &&  CONFIG_RP2040_SPI1_GPIO >= 0
