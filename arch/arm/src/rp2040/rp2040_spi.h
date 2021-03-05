@@ -32,7 +32,7 @@
 #include "rp2040_dmac.h"
 #endif
 
-#if defined(CONFIG_RP2040_SPI0)
+#if defined(CONFIG_RP2040_SPI0) || defined(CONFIG_RP2040_SPI1)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -220,5 +220,5 @@ int rp2040_spi1register(FAR struct spi_dev_s *dev, spi_mediachange_t callback,
 #endif
 
 #endif /* __ASSEMBLY__ */
-#endif /* CONFIG_RP2040_SPI0/3/4/5 */
+#endif /* CONFIG_RP2040_SPI0/1 */
 #endif /* __ARCH_ARM_SRC_RP2040_RP2040_SPI_H */

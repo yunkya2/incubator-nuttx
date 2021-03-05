@@ -119,3 +119,25 @@ config RP2040_I2C_DRIVER
 		in any real driver application.
 
 endif
+
+menuconfig RP2040_SPISD
+	bool "SPI SD Card"
+	default n
+	select MMCSD_SPI
+
+if RP2040_SPISD
+
+config RP2040_SPISD_SLOT_NO
+	int "SPI SD Card Slot Number"
+	default 0
+	---help---
+		Select spi sd card slot number.
+
+config RP2040_SPISD_SPI_CH
+	int "SPI channel number"
+	default 0
+	range 0 1
+	---help---
+		Select spi channel number to use spi sd card.
+
+endif # SPISD Configuration
