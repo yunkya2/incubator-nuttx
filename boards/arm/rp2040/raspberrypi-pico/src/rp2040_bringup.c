@@ -63,7 +63,7 @@ int rp2040_bringup(void)
   #endif
 #endif
 
-#ifdef CONFIG_RP2040_SPI /* TBD */
+#ifdef CONFIG_RP2040_SPI_DRIVER
   #ifdef CONFIG_RP2040_SPI0
   ret = board_spidev_initialize(0);
   if (ret < 0)

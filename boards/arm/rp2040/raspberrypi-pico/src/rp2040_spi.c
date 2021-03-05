@@ -34,10 +34,8 @@
 
 #include "arm_arch.h"
 #include "chip.h"
+#include "rp2040_gpio.h"
 #include "hardware/rp2040_spi.h"
-#include "hardware/rp2040_pads_bank0.h"
-#include "hardware/rp2040_io_bank0.h"
-#include "hardware/rp2040_sio.h"
 
 /****************************************************************************
  * Public Functions
@@ -47,7 +45,7 @@
  * Name:  rp2040_spi0/1select and rp2040_spi0/1status
  *
  * Description:
- *   The external functions, rp2040_spi1/2/3select and rp2040_spi1/2/3 status
+ *   The external functions, rp2040_spi0/1select and rp2040_spi0/1status
  *   must be provided by board-specific logic.
  *   They are implementations of the select and status methods of the SPI
  *   interface defined by struct spi_ops_s (see include/nuttx/spi/spi.h).
@@ -56,7 +54,7 @@
  *
  *   1. Provide logic in rp2040_boardinitialize() to configure SPI chip select
  *      pins.
- *   2. Provide rp2040_spi0/3/4/5select() and rp2040_spi0/3/4/5status()
+ *   2. Provide rp2040_spi0/1select() and rp2040_spi0/1status()
  *      functions in your board-specific logic.
  *      These functions will perform chip selection and status operations
  *      using GPIOs in the way your board is configured.
@@ -76,11 +74,7 @@ void rp2040_spi0select(FAR struct spi_dev_s *dev, uint32_t devid,
   spiinfo("devid: %d CS: %s\n", (int)devid,
           selected ? "assert" : "de-assert");
 
-  if (selected)
-    putreg32(1 << 20, RP2040_SIO_GPIO_OUT_CLR);
-  else
-    putreg32(1 << 20, RP2040_SIO_GPIO_OUT_SET);
-
+  rp2040_gpio_put(CONFIG_RP2040_SPI0_GPIO + 1, !selected);
 }
 
 uint8_t rp2040_spi0status(FAR struct spi_dev_s *dev, uint32_t devid)
@@ -90,7 +84,6 @@ uint8_t rp2040_spi0status(FAR struct spi_dev_s *dev, uint32_t devid)
 #  if defined(CONFIG_RP2040_SPISD) && (CONFIG_RP2040_SPISD_SPI_CH == 0)
   ret = board_spisd_status(dev, devid);
 #  endif
-  ret = SPI_STATUS_PRESENT;
   return ret;
 }
 #endif
@@ -101,10 +94,17 @@ void rp2040_spi1select(FAR struct spi_dev_s *dev, uint32_t devid,
 {
   spiinfo("devid: %d CS: %s\n", (int)devid,
           selected ? "assert" : "de-assert");
+
+  rp2040_gpio_put(CONFIG_RP2040_SPI1_GPIO + 1, !selected);
 }
 
 uint8_t rp2040_spi1status(FAR struct spi_dev_s *dev, uint32_t devid)
 {
-  return 0;
+  uint8_t ret = 0;
+
+#  if defined(CONFIG_RP2040_SPISD) && (CONFIG_RP2040_SPISD_SPI_CH == 1)
+  ret = board_spisd_status(dev, devid);
+#  endif
+  return ret;
 }
 #endif

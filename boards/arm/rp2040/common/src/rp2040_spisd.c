@@ -42,12 +42,6 @@
 #  define CONFIG_RP2040_SPISD_SLOT_NO 0
 #endif
 
-/* Please configure the pin assignment for your board */
-
-#ifndef MMCSD_DETECT
-#  define MMCSD_DETECT PIN_I2S0_DATA_OUT
-#endif
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -60,20 +54,10 @@
  *
  ****************************************************************************/
 
-#include "hardware/rp2040_pads_bank0.h"
-#include "hardware/rp2040_io_bank0.h"
-#include "hardware/rp2040_sio.h"
-
 int board_spisd_initialize(int minor, int bus)
 {
   int ret;
   FAR struct spi_dev_s *spi;
-
-#if 0
-  /* Enable input of detect pin */
-
-  cxd56_gpio_config(MMCSD_DETECT, true);
-#endif
 
   /* Initialize spi deivce */
 
@@ -84,11 +68,19 @@ int board_spisd_initialize(int minor, int bus)
       return -ENODEV;
     }
 
-#if 1
-  rp2040_gpio_set_function(20,
-                           RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_SIO);
-  putreg32(1 << 20, RP2040_SIO_GPIO_OE_SET);
-  putreg32(1 << 20, RP2040_SIO_GPIO_OUT_SET);
+  /* Pull up RX */
+
+#ifdef CONFIG_RP2040_SPI0
+  if (bus == 0)
+    {
+      rp2040_gpio_set_pulls(CONFIG_RP2040_SPI0_GPIO, true, false);
+    }
+#endif
+#ifdef CONFIG_RP2040_SPI1
+  if (bus == 1)
+    {
+      rp2040_gpio_set_pulls(CONFIG_RP2040_SPI1_GPIO, true, false);
+    }
 #endif
 
   /* Get the SPI driver instance for the SD chip select */
@@ -132,12 +124,8 @@ uint8_t board_spisd_status(FAR struct spi_dev_s *dev, uint32_t devid)
 
   if (devid == SPIDEV_MMCSD(0))
     {
-      /* MMCSD_DETECT is mapping to SD Card detect pin
-       * MMCSD_DETECT = 0: Inserted
-       * MMCSD_DETECT = 1: Removed
-       */
+      /* Card detection is not supported yet */
 
-//      ret = cxd56_gpio_read(MMCSD_DETECT) ? 0 : SPI_STATUS_PRESENT;
       ret = SPI_STATUS_PRESENT;
     }
 
