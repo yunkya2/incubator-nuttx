@@ -85,8 +85,13 @@ void rp2040_spi0select(FAR struct spi_dev_s *dev, uint32_t devid,
 
 uint8_t rp2040_spi0status(FAR struct spi_dev_s *dev, uint32_t devid)
 {
-  return SPI_STATUS_PRESENT;
-//  return 0;
+  uint8_t ret = 0;
+
+#  if defined(CONFIG_RP2040_SPISD) && (CONFIG_RP2040_SPISD_SPI_CH == 0)
+  ret = board_spisd_status(dev, devid);
+#  endif
+  ret = SPI_STATUS_PRESENT;
+  return ret;
 }
 #endif
 

@@ -63,7 +63,7 @@ int rp2040_bringup(void)
   #endif
 #endif
 
-#ifdef CONFIG_RP2040_SPI
+#ifdef CONFIG_RP2040_SPI /* TBD */
   #ifdef CONFIG_RP2040_SPI0
   ret = board_spidev_initialize(0);
   if (ret < 0)
@@ -79,6 +79,17 @@ int rp2040_bringup(void)
       _err("ERROR: Failed to initialize SPI1.\n");
     }
   #endif
+#endif
+
+#ifdef CONFIG_RP2040_SPISD
+  /* Mount the SPI-based MMC/SD block driver */
+
+  ret = board_spisd_initialize(0, CONFIG_RP2040_SPISD_SPI_CH);
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize SPI device to MMC/SD: %d\n",
+           ret);
+    }
 #endif
 
 #ifdef CONFIG_FS_PROCFS

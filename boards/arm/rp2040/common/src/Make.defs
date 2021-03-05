@@ -30,6 +30,10 @@ ifeq ($(CONFIG_LCD_SSD1306),y)
 CSRCS += rp2040_ssd1306.c
 endif
 
+ifeq ($(CONFIG_RP2040_SPISD),y)
+  CSRCS += rp2040_spisd.c
+endif
+
 DEPPATH += --dep-path src
 VPATH += :src
 CFLAGS += $(shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)board$(DELIM)src)

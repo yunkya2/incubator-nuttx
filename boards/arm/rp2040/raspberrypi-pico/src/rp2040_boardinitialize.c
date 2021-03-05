@@ -104,7 +104,17 @@ void rp2040_boardearlyinitialize(void)
                            RP2040_IO_BANK0_GPIO_CTRL_FUNCSEL_UART); /* RTS */
 #endif
 #endif
+}
 
+/****************************************************************************
+ * Name: rp2040_boardinitialize
+ *
+ * Description:
+ *
+ ****************************************************************************/
+
+void rp2040_boardinitialize(void)
+{
   /* Set default I2C pin */
 
 #if defined(CONFIG_RP2040_I2C0) && CONFIG_RP2040_I2C0_GPIO >= 0
@@ -156,15 +166,4 @@ void rp2040_boardearlyinitialize(void)
 
   /* TBD */
 #endif
-}
-
-/****************************************************************************
- * Name: rp2040_boardinitialize
- *
- * Description:
- *
- ****************************************************************************/
-
-void rp2040_boardinitialize(void)
-{
 }

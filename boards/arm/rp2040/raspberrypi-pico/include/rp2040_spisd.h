@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/rp2040/common/src/rp2040_spidev.c
+ * boards/arm/rp2040/raspberrypi-pico/include/rp2040_spisd.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,52 +18,66 @@
  *
  ****************************************************************************/
 
+#ifndef __BOARDS_ARM_RP2040_RASPBERRYPI_PICO_INCLUDE_RP2040_SPISD_H
+#define __BOARDS_ARM_RP2040_RASPBERRYPI_PICO_INCLUDE_RP2040_SPISD_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include <stdio.h>
-#include <debug.h>
-#include <errno.h>
-#include <nuttx/spi/spi_transfer.h>
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
 
-#include "rp2040_spi.h"
+#ifndef __ASSEMBLY__
 
 /****************************************************************************
- * Public Functions
+ * Public Data
+ ****************************************************************************/
+
+#undef EXTERN
+#if defined(__cplusplus)
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
+
+/****************************************************************************
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Name: board_spidev_initialize
+ * Name: board_spisd_initialize
  *
  * Description:
- *   Initialize and register spi driver for the specified spi port
+ *   Initialize the SPI-based SD card.
  *
  ****************************************************************************/
 
-int board_spidev_initialize(int port)
-{
-  int ret;
-  FAR struct spi_dev_s *spi;
+#ifdef CONFIG_RP2040_SPISD
+int board_spisd_initialize(int minor, int bus);
+#endif
 
-  spiinfo("Initializing /dev/spi%d..\n", port);
+/****************************************************************************
+ * Name: board_spisd_status
+ *
+ * Description:
+ *   Get the status whether SD Card is present or not.
+ *
+ ****************************************************************************/
 
-  /* Initialize spi device */
+#ifdef CONFIG_RP2040_SPISD
+uint8_t board_spisd_status(FAR struct spi_dev_s *dev, uint32_t devid);
+#endif
 
-  spi = rp2040_spibus_initialize(port);
-  if (!spi)
-    {
-      spierr("ERROR: Failed to initialize spi%d.\n", port);
-      return -ENODEV;
-    }
-
-  ret = spi_register(spi, port);
-  if (ret < 0)
-    {
-      spierr("ERROR: Failed to register spi%d: %d\n", port, ret);
-    }
-
-  return ret;
+#undef EXTERN
+#if defined(__cplusplus)
 }
+#endif
+
+#endif /* __ASSEMBLY__ */
+#endif /* __BOARDS_ARM_RP2040_RASPBERRYPI_PICO_INCLUDE_RP2040_SPISD_H */
