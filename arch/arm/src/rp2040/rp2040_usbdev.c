@@ -134,6 +134,11 @@ const struct trace_msg_t g_usb_trace_strings_intdecode[] =
 #define RP2040_EPLOG(epindex)   (((epindex) / 2) + \
                                  ((epindex) & 1 ? USB_DIR_OUT : USB_DIR_IN))
 
+/* Request queue operations *************************************************/
+
+#define rp2040_rqempty(ep)      ((ep)->head == NULL)
+#define rp2040_rqpeek(ep)       ((ep)->head)
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -151,8 +156,6 @@ struct rp2040_req_s
 {
   struct usbdev_req_s req;              /* Standard USB request */
   struct rp2040_req_s *flink;           /* Supports a singly linked list */
-
-  sq_entry_t          q_ent;
 };
 
 /* This is the internal representation of an endpoint */
@@ -175,7 +178,6 @@ struct rp2040_ep_s
 
 
 
-  sq_queue_t              req_q;
 
   uint8_t *curr_buf;              /* Current transfer buffer address */
   uint16_t curr_len;              /*                  length */
@@ -874,8 +876,7 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
 static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
                                   int epindex)
 {
-  struct usbdev_req_s *req;
-  sq_entry_t *q_ent;
+  struct rp2040_req_s *privreq;
   struct rp2040_ep_s *privep;
   int len;
 
@@ -928,18 +929,17 @@ static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
 
   if (privep->curr_total_len == 0)
     {
-      q_ent = sq_remlast(&privep->req_q);
-      if (q_ent != NULL)
+      privreq = rp2040_rqdequeue(privep);
+      if (privreq != NULL)      
         {
-          req = &container_of(q_ent, struct rp2040_req_s, q_ent)->req;
-          req->xfrd = privep->curr_xfrd_len;
+          privreq->req.xfrd = privep->curr_xfrd_len;
 
-          usbtrace(TRACE_COMPLETE(privep->epphy), req->xfrd);
+          usbtrace(TRACE_COMPLETE(privep->epphy), privreq->req.xfrd);
 
-          if (req->callback)
+          if (privreq->req.callback)
             {
-              req->result = 0;
-              req->callback(&privep->ep, req);
+              privreq->req.result = 0;
+              privreq->req.callback(&privep->ep, &privreq->req);
             }
         }
       else
@@ -947,11 +947,10 @@ static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
           usbtrace(TRACE_COMPLETE(privep->epphy), 0);
         }
 
-      if (privep->req_q.tail)
+      privreq = rp2040_rqpeek(privep);
+      if (privreq != NULL)
         {
-          req = &container_of(privep->req_q.tail,
-                              struct rp2040_req_s, q_ent)->req;
-          rp2040_start_req_transfer(privep, req);
+          rp2040_start_req_transfer(privep, &privreq->req);
         }
       else
         {
@@ -1191,20 +1190,18 @@ static int rp2040_epdisable(FAR struct usbdev_ep_s *ep)
 
   /* Cancel all queued requests */
 
-  while (privep->req_q.tail)
+  while (!rp2040_rqempty(privep))
     {
-      struct usbdev_req_s *req;
-      sq_entry_t *q_ent;
+      struct rp2040_req_s *privreq;
 
       /* Dequeue from Reqbuf poll */
 
-      q_ent = sq_remlast(&privep->req_q);
-      req = &container_of(q_ent, struct rp2040_req_s, q_ent)->req;
+      privreq = rp2040_rqdequeue(privep);
 
       /* return reqbuf to function driver */
 
-      req->result = -ESHUTDOWN;
-      req->callback(ep, req);
+      privreq->req.result = -ESHUTDOWN;
+      privreq->req.callback(ep, &privreq->req);
     }
 
   spin_unlock_irqrestore(NULL, flags);
@@ -1348,8 +1345,8 @@ static int rp2040_epsubmit(FAR struct usbdev_ep_s *ep,
 
   flags = spin_lock_irqsave(NULL);
 
-  sq_addfirst(&privreq->q_ent, &privep->req_q);
-  if (privep->curr_buf == NULL)
+  rp2040_rqenqueue(privep, privreq);
+    if (privep->curr_buf == NULL)
     {
       rp2040_start_req_transfer(privep, req);
     }
@@ -1398,7 +1395,8 @@ static int rp2040_epcancel(FAR struct usbdev_ep_s *ep,
   /* Remove request from req_queue */
 
   flags = spin_lock_irqsave(NULL);
-  sq_remafter(&privreq->q_ent, &privep->req_q); /* TBD */
+  rp2040_rqdequeue(privep); /* TBD */
+  // sq_remafter(&privreq->q_ent, &privep->req_q); /* TBD */
   spin_unlock_irqrestore(NULL, flags);
   return OK;
 }
@@ -1696,7 +1694,8 @@ void arm_usbinitialize(void)
       g_usbdev.eplist[i].ep.maxpacket = 64;
       g_usbdev.eplist[i].dev = &g_usbdev;
       g_usbdev.eplist[i].epphy = USB_EPNO(RP2040_EPLOG(i));
-      sq_init(&g_usbdev.eplist[i].req_q);
+      g_usbdev.eplist[i].head = NULL;
+      g_usbdev.eplist[i].tail = NULL;
       g_usbdev.eplist[i].ep.eplog = RP2040_EPLOG(i);
     }
 
