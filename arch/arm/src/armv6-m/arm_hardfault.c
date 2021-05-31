@@ -110,6 +110,12 @@ int arm_hardfault(int irq, FAR void *context, FAR void *arg)
         }
     }
 
+{
+  char buf[80];
+  sprintf(buf, "Fault PC: %p\n", pc);
+  up_puts(buf);
+}
+
 #if defined(CONFIG_DEBUG_HARDFAULT_ALERT)
   /* Dump some hard fault info */
 
