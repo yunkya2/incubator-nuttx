@@ -1836,6 +1836,12 @@ static int cdcacm_setup(FAR struct usbdevclass_driver_s *driver,
                 memcpy(ctrlreq->buf, &priv->linecoding,
                        SIZEOF_CDC_LINECODING);
                 ret = SIZEOF_CDC_LINECODING;
+#if 0
+uint8_t *p = (uint8_t *)&priv->linecoding;
+_err("%02x %02x %02x %02x %02x %02x %02x\n",
+  p[0], p[1], p[2], p[3], p[4], p[5], p[6]
+);
+#endif
               }
             else
               {
@@ -1856,6 +1862,12 @@ static int cdcacm_setup(FAR struct usbdevclass_driver_s *driver,
                 len == SIZEOF_CDC_LINECODING && /* dataout && len == outlen && */
                 index == priv->devinfo.ifnobase)
               {
+#if 0
+uint8_t *p = (uint8_t *)dataout;
+_err("%02x %02x %02x %02x %02x %02x %02x\n",
+  p[0], p[1], p[2], p[3], p[4], p[5], p[6]
+);
+#endif
                 /* Save the new line coding in the private data structure.
                  * NOTE: that this is conditional now because not all device
                  * controller drivers supported provision of EP0 OUT data

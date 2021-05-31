@@ -643,6 +643,7 @@ static int usbmsc_setup(FAR struct usbdevclass_driver_s *driver,
 
                 priv->theventset |= USBMSC_EVENT_CFGCHANGE;
                 priv->thvalue     = value;
+usbtrace(TRACE_CLASSAPI_USER, 0x10);
                 usbmsc_scsi_signal(priv);
 
                 /* Return here... the response will be provided later by the
@@ -682,6 +683,7 @@ static int usbmsc_setup(FAR struct usbdevclass_driver_s *driver,
                     /* Signal to instantiate the interface change */
 
                     priv->theventset |= USBMSC_EVENT_IFCHANGE;
+usbtrace(TRACE_CLASSAPI_USER, 0x11);
                     usbmsc_scsi_signal(priv);
 
                     /* Return here... the response will be provided later by
@@ -753,6 +755,7 @@ static int usbmsc_setup(FAR struct usbdevclass_driver_s *driver,
                      */
 
                      priv->theventset |= USBMSC_EVENT_RESET;
+usbtrace(TRACE_CLASSAPI_USER, 0x12);
                      usbmsc_scsi_signal(priv);
 
                     /* Return here... the response will be provided later by
@@ -876,6 +879,7 @@ static void usbmsc_disconnect(FAR struct usbdevclass_driver_s *driver,
   /* Signal the worker thread */
 
   priv->theventset |= USBMSC_EVENT_DISCONNECT;
+usbtrace(TRACE_CLASSAPI_USER, 0x13);
   usbmsc_scsi_signal(priv);
   leave_critical_section(flags);
 
@@ -1106,6 +1110,7 @@ void usbmsc_wrcomplete(FAR struct usbdev_ep_s *ep,
   /* Inform the worker thread that a write request has been returned */
 
   priv->theventset |= USBMSC_EVENT_WRCOMPLETE;
+usbtrace(TRACE_CLASSAPI_USER, 0x14);
   usbmsc_scsi_signal(priv);
 }
 
@@ -1160,6 +1165,7 @@ void usbmsc_rdcomplete(FAR struct usbdev_ep_s *ep,
          */
 
         priv->theventset |= USBMSC_EVENT_RDCOMPLETE;
+usbtrace(TRACE_CLASSAPI_USER, 0x15);
         usbmsc_scsi_signal(priv);
       }
       break;
@@ -1257,6 +1263,7 @@ void usbmsc_deferredresponse(FAR struct usbmsc_dev_s *priv, bool failed)
       /* On a failure, the USB driver will stall. */
 
       usbtrace(TRACE_CLSERROR(USBMSC_TRACEERR_DEFERREDRESPSTALLED), 0);
+_err("STALL 5\n");
       EP_STALL(dev->ep0);
     }
 }
@@ -1727,6 +1734,7 @@ int usbmsc_exportluns(FAR void *handle)
   uinfo("Signalling for the SCSI worker thread\n");
   flags = enter_critical_section();
   priv->theventset |= USBMSC_EVENT_READY;
+usbtrace(TRACE_CLASSAPI_USER, 0x16);
   usbmsc_scsi_signal(priv);
   leave_critical_section(flags);
 
@@ -1855,6 +1863,7 @@ void usbmsc_uninitialize(FAR void *handle)
 
           flags = enter_critical_section();
           priv->theventset |= USBMSC_EVENT_TERMINATEREQUEST;
+usbtrace(TRACE_CLASSAPI_USER, 0x17);
           usbmsc_scsi_signal(priv);
           leave_critical_section(flags);
         }

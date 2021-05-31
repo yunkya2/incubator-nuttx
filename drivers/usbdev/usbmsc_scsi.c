@@ -1768,6 +1768,7 @@ static int usbmsc_idlestate(FAR struct usbmsc_dev_s *priv)
        */
 
       usbtrace(TRACE_CLSERROR(USBMSC_TRACEERR_INVALIDCBWSIGNATURE), 0);
+_err("STALL 1\n");
       EP_STALL(priv->epbulkout);
       EP_STALL(priv->epbulkin);
     }
@@ -1785,6 +1786,7 @@ static int usbmsc_idlestate(FAR struct usbmsc_dev_s *priv)
        */
 
       usbtrace(TRACE_CLSERROR(USBMSC_TRACEERR_INVALIDCBWCONTENT), 0);
+_err("STALL 2\n");
       EP_STALL(priv->epbulkout);
       EP_STALL(priv->epbulkin);
     }
@@ -1919,6 +1921,7 @@ static int usbmsc_cmdparsestate(FAR struct usbmsc_dev_s *priv)
 
   ret = -EINVAL;
 
+//_err("SCSI:%02x\n", priv->cdb[0]);
   switch (priv->cdb[0])
     {
     case SCSI_CMD_TESTUNITREADY:            /* 0x00 Mandatory */
@@ -2001,7 +2004,9 @@ static int usbmsc_cmdparsestate(FAR struct usbmsc_dev_s *priv)
     /*                                         0x26-27 Vendor specific */
 
     case SCSI_CMD_READ10:                   /* 0x28 Mandatory */
+//_err("r10\n");
       ret = usbmsc_cmdread10(priv);
+//_err("r10e\n");
       break;
 
     /*                                         0x29 Vendor specific */
@@ -2398,6 +2403,7 @@ static int usbmsc_cmdwritestate(FAR struct usbmsc_dev_s *priv)
       irqstate_t flags = enter_critical_section();
       privreq = (FAR struct usbmsc_req_s *)sq_remfirst(&priv->rdreqlist);
       leave_critical_section(flags);
+_err("SCSI: remfirst %p\n", privreq);
 
       /* If there no request data available, then just return an error.
        * This will cause us to remain in the CMDWRITE state.  When a filled
@@ -2593,6 +2599,7 @@ static int usbmsc_cmdfinishstate(FAR struct usbmsc_dev_s *priv)
                */
 
               nxsig_usleep (100000);
+_err("STALL 3\n");
               EP_STALL(priv->epbulkin);
 
               /* now wait for stall to go away .... */
@@ -2625,6 +2632,7 @@ static int usbmsc_cmdfinishstate(FAR struct usbmsc_dev_s *priv)
             {
               usbtrace(TRACE_CLSERROR(USBMSC_TRACEERR_CMDFINSHSUBMIT),
                        (uint16_t)priv->residue);
+_err("STALL 4\n");
               EP_STALL(priv->epbulkout);
             }
 
@@ -2840,6 +2848,7 @@ int usbmsc_scsi_main(int argc, char *argv[])
       flags = enter_critical_section();
       if (priv->theventset == USBMSC_EVENT_NOEVENTS)
         {
+usbtrace(TRACE_CLASSAPI_USER, 1);
           ret = usbmsc_scsi_wait(priv);
           if (ret < 0)
             {
@@ -2849,6 +2858,7 @@ int usbmsc_scsi_main(int argc, char *argv[])
               usbmsc_scsi_unlock(priv);
               return EXIT_FAILURE;
             }
+usbtrace(TRACE_CLASSAPI_USER, 2);
         }
 
       /* Sample any events before re-enabling interrupts.  Any events that
@@ -2892,7 +2902,9 @@ int usbmsc_scsi_main(int argc, char *argv[])
 
           if ((eventset & (USBMSC_EVENT_CFGCHANGE)) != 0)
             {
+usbtrace(TRACE_CLASSAPI_USER, 3);
               usbmsc_setconfig(priv, priv->thvalue);
+usbtrace(TRACE_CLASSAPI_USER, 4);
             }
 
           /* These events required that we send a deferred EP0 setup
@@ -2927,8 +2939,13 @@ int usbmsc_scsi_main(int argc, char *argv[])
        * will resume processing in the same state.
        */
 
+static char *st[] = {
+"NOTSTART", "START", "IDLE", "CMDPARSE", "CMDREAD", "CMDWRITE", "CMDFINISH",
+"CMDSTATUS", "TERMINATED"
+};
       do
         {
+//_err("STATE: %s\n", st[priv->thstate]);
           switch (priv->thstate)
             {
             case USBMSC_STATE_IDLE:        /* Started and waiting for commands */
