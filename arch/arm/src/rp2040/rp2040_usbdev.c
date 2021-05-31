@@ -34,6 +34,7 @@
 #include <queue.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/spinlock.h>
 #include <nuttx/kmalloc.h>
 
 #include <nuttx/usb/usb.h>
@@ -248,13 +249,14 @@ static int rp2040_epconfigure(FAR struct usbdev_ep_s *ep,
 {
   int epnum;
   FAR struct rp2040_ep_s *privep = (struct rp2040_ep_s *)ep;
-//  FAR struct rp2040_usbdev_s *priv = privep->dev;
+  FAR struct rp2040_usbdev_s *priv = privep->dev;
   int eptype;
   uint16_t maxpacket;
-
+  int epindex;
 
 _err("EPCONFIGURE: %d\n", privep->epphy);
 
+  epindex = RP2040_EPINDEX(ep->eplog);
   eptype    = desc->attr & USB_EP_ATTR_XFERTYPE_MASK;
   maxpacket = GETUINT16(desc->mxpacketsize);
 
@@ -274,7 +276,20 @@ _err("config: EP%d %s %d maxpacket=%d\n", privep->epphy,
     }
   else
     {
-      /* TBD */
+      privep->data_buf = (uint8_t *)(RP2040_USBCTRL_DPRAM_BASE +
+                                     priv->next_offset);
+      priv->next_offset =
+                     (priv->next_offset + privep->ep.maxpacket + 63) & ~63;
+      privep->ep_ctrl = RP2040_USBCTRL_DPRAM_EP_CTRL(epindex);
+
+      putreg32(RP2040_USBCTRL_DPRAM_EP_CTRL_ENABLE |
+               RP2040_USBCTRL_DPRAM_EP_CTRL_INT_1BUF |
+               (eptype << RP2040_USBCTRL_DPRAM_EP_CTRL_EP_TYPE_SHIFT) |
+//               RP2040_USBCTRL_DPRAM_EP_CTRL_INT_STALL |
+//               RP2040_USBCTRL_DPRAM_EP_CTRL_INT_NAK |
+               ((uint32_t)privep->data_buf &
+                RP2040_USBCTRL_DPRAM_EP_CTRL_EP_ADDR_MASK),
+               privep->ep_ctrl);
     }
 
   privep->disable = 0;
@@ -305,6 +320,7 @@ _err("EPDISABLE: %d\n", privep->epphy);
   privep->curr_req_buf = NULL;
   privep->stalled = false;
   privep->next_pid = 0;
+  putreg32(0, privep->buf_ctrl);
 
   while (privep->req_q.tail)
     {
@@ -744,13 +760,14 @@ static FAR struct usbdev_ep_s *rp2040_allocep(FAR struct usbdev_s *dev,
       uinfo("ep is still used\n");
       return NULL;
     }
-  priv->used |= 1 << epphy;
+  priv->used |= 1 << epphy; /* TBD */
 
   privep = &priv->eplist[epindex];
   privep->in = in;
   privep->type = eptype;
   privep->epphy = epphy;
-  privep->ep.eplog = epphy;
+  privep->ep.eplog = eplog;
+
   privep->next_pid = 0;
   privep->stalled = false;
   privep->curr_req_buf = NULL;
@@ -760,23 +777,6 @@ static FAR struct usbdev_ep_s *rp2040_allocep(FAR struct usbdev_s *dev,
     {
       privep->data_buf = (uint8_t *)RP2040_USBCTRL_DPRAM_EP0_BUF_0;
       privep->ep_ctrl = 0;
-    }
-  else
-    {
-      privep->data_buf = (uint8_t *)(RP2040_USBCTRL_DPRAM_BASE +
-                                     priv->next_offset);
-      priv->next_offset =
-                     (priv->next_offset + privep->ep.maxpacket + 63) & ~63;
-      privep->ep_ctrl = RP2040_USBCTRL_DPRAM_EP_CTRL(epindex);
-
-      putreg32(RP2040_USBCTRL_DPRAM_EP_CTRL_ENABLE |
-               RP2040_USBCTRL_DPRAM_EP_CTRL_INT_1BUF |
-               (eptype << RP2040_USBCTRL_DPRAM_EP_CTRL_EP_TYPE_SHIFT) |
-//               RP2040_USBCTRL_DPRAM_EP_CTRL_INT_STALL |
-//               RP2040_USBCTRL_DPRAM_EP_CTRL_INT_NAK |
-               ((uint32_t)privep->data_buf &
-                RP2040_USBCTRL_DPRAM_EP_CTRL_EP_ADDR_MASK),
-               privep->ep_ctrl);
     }
 
 _err("DEVALLOCEP: %x %d %d %p\n", eplog, in, eptype, &privep->ep);
@@ -799,7 +799,7 @@ static void rp2040_freeep(FAR struct usbdev_s *dev,
 
   usbtrace(TRACE_DEVFREEEP, (uint16_t)privep->epphy);
 
-  priv->used &= ~(1 << privep->epphy);
+  priv->used &= ~(1 << privep->epphy); /* TBD */
 }
 
 /****************************************************************************
@@ -1357,6 +1357,7 @@ _err("BUSRESET\n");
   putreg32(0, RP2040_USBCTRL_REGS_ADDR_ENDP);
   priv->dev_addr = 0;
   priv->recvzlp = 0;
+  priv->next_offset = RP2040_USBCTRL_DPRAM_DATA_BUF_OFFSET;
   CLASS_DISCONNECT(priv->driver, &priv->usbdev);
   clrbits_reg32(RP2040_USBCTRL_REGS_SIE_STATUS_BUS_RESET,
                 RP2040_USBCTRL_REGS_SIE_STATUS);
@@ -1467,9 +1468,9 @@ void arm_usbinitialize(void)
       g_usbdev.eplist[i].ep.ops = &g_epops;
       g_usbdev.eplist[i].ep.maxpacket = 64;
       g_usbdev.eplist[i].dev = &g_usbdev;
-      g_usbdev.eplist[i].epphy = i / 2;
+      g_usbdev.eplist[i].epphy = USB_EPNO(RP2040_EPLOG(i));
       sq_init(&g_usbdev.eplist[i].req_q);
-      g_usbdev.eplist[i].ep.eplog = i / 2;
+      g_usbdev.eplist[i].ep.eplog = RP2040_EPLOG(i);
     }
 
   if (irq_attach(RP2040_USBCTRL_IRQ, rp2040_usbinterrupt, &g_usbdev) != 0)
