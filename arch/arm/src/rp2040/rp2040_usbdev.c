@@ -67,7 +67,12 @@
 #define RP2040_TRACEERR_IRQREGISTRATION   0x0003
 #define RP2040_TRACEERR_BINDFAILED        0x0004
 #define RP2040_TRACEERR_DRIVER            0x0005
-#define RP2040_TRACEERR_STALLEDREQUEST    0x0006
+#define RP2040_TRACEERR_EPREAD            0x0006
+#define RP2040_TRACEERR_EWRITE            0x0007
+#define RP2040_TRACEERR_NULLREQUEST       0x0008
+#define RP2040_TRACEERR_REQABORTED        0x0009
+#define RP2040_TRACEERR_STALLEDISPATCH    0x000a
+#define RP2040_TRACEERR_STALLEDREQUEST    0x000b
 
 /* Trace interrupt codes */
 
@@ -85,6 +90,7 @@
 #define RP2040_TRACEINTID_INTR_BUFFSTAT  12
 #define RP2040_TRACEINTID_INTR_SETUP     13
 #define RP2040_TRACEINTID_TESTMODE       14
+#define RP2040_TRACEINTID_DISPATCH       15
 
 #ifdef CONFIG_USBDEV_TRACE_STRINGS
 const struct trace_msg_t g_usb_trace_strings_deverror[] =
@@ -94,6 +100,11 @@ const struct trace_msg_t g_usb_trace_strings_deverror[] =
   TRACE_STR(RP2040_TRACEERR_IRQREGISTRATION),
   TRACE_STR(RP2040_TRACEERR_BINDFAILED),
   TRACE_STR(RP2040_TRACEERR_DRIVER),
+  TRACE_STR(RP2040_TRACEERR_EPREAD),
+  TRACE_STR(RP2040_TRACEERR_EWRITE),
+  TRACE_STR(RP2040_TRACEERR_NULLREQUEST),
+  TRACE_STR(RP2040_TRACEERR_REQABORTED),
+  TRACE_STR(RP2040_TRACEERR_STALLEDISPATCH),
   TRACE_STR(RP2040_TRACEERR_STALLEDREQUEST),
   TRACE_STR_END
 };
@@ -114,6 +125,7 @@ const struct trace_msg_t g_usb_trace_strings_intdecode[] =
   TRACE_STR(RP2040_TRACEINTID_INTR_BUFFSTAT),
   TRACE_STR(RP2040_TRACEINTID_INTR_SETUP),
   TRACE_STR(RP2040_TRACEINTID_TESTMODE),
+  TRACE_STR(RP2040_TRACEINTID_DISPATCH),
   TRACE_STR_END
 };
 #endif
@@ -176,7 +188,7 @@ struct rp2040_ep_s
   struct rp2040_req_s *tail;
   uint8_t epphy;                        /* Physical EP address */
 
-
+  bool txnullpkt;                       /* Null packet needed at end of transfer */
 
 
   uint8_t *curr_buf;              /* Current transfer buffer address */
@@ -225,6 +237,11 @@ struct rp2040_usbdev_s
   struct usb_ctrlreq_s ctrl;  /* Last EP0 request */
   uint8_t setup_out[64];
   int     setup_out_len;
+
+
+
+  bool stalled;
+  bool selfpowered;           /* 1: Device is self powered */
 
 
   /* The endpoint list */
@@ -437,7 +454,38 @@ static void rp2040_update_buffer_control(FAR struct rp2040_ep_s *privep,
 
 static int rp2040_epwrite(uint8_t epphy, uint8_t *buf, uint16_t nbytes)
 {
+  FAR struct rp2040_ep_s *privep = &g_usbdev.eplist[epphy * 2];
+  uint16_t bytesleft;
+  uint32_t val;
+  irqstate_t flags;
 
+  bytesleft = RP2040_BULKMAXPACKET;
+  if (bytesleft > nbytes)
+    {
+      bytesleft = nbytes;
+    }
+
+  usbtrace(TRACE_WRITE(epphy), bytesleft); /* TBD */
+
+  /* Copy the transmit data into DPSRAM */
+
+  memcpy(privep->data_buf, buf, bytesleft);
+
+  val = nbytes |
+        RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_AVAIL |
+        RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_FULL |
+        (privep->next_pid ?
+         RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_DATA1_PID : 0);
+
+  privep->next_pid = 1 - privep->next_pid;    /* Invert DATA0 <-> DATA1 */
+
+  /* Start the transfer */
+
+  flags = spin_lock_irqsave(NULL);
+  rp2040_update_buffer_control(privep, 0, val);
+  spin_unlock_irqrestore(NULL, flags);
+
+  return bytesleft;
 }
 
 /****************************************************************************
@@ -450,8 +498,192 @@ static int rp2040_epwrite(uint8_t epphy, uint8_t *buf, uint16_t nbytes)
 
 static int rp2040_epread(uint8_t epphy, uint8_t *buf, uint16_t nbytes)
 {
+  FAR struct rp2040_ep_s *privep = &g_usbdev.eplist[epphy * 2 + 1];
+  uint16_t bytesleft;
+  uint32_t val;
+  irqstate_t flags;
+  int epindex = epphy * 2 + 1;
+
+  bytesleft = getreg32(RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(epindex))
+              & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
+
+  usbtrace(TRACE_READ(epphy), bytesleft); /* TBD */
 
 }
+
+
+
+/****************************************************************************
+ * Name: rp2040_abortrequest
+ *
+ * Description:
+ *   Discard a request
+ *
+ ****************************************************************************/
+
+static inline void rp2040_abortrequest(struct rp2040_ep_s *privep,
+                                       struct rp2040_req_s *privreq,
+                                       int16_t result)
+{
+  usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_REQABORTED),
+          (uint16_t)privep->epphy);
+
+  /* Save the result in the request structure */
+
+  privreq->req.result = result;
+
+  /* Callback to the request completion handler */
+
+  privreq->req.callback(&privep->ep, &privreq->req);
+}
+
+/****************************************************************************
+ * Name: rp2040_reqcomplete
+ *
+ * Description:
+ *   Handle termination of a request.
+ *
+ ****************************************************************************/
+
+static void rp2040_reqcomplete(struct rp2040_ep_s *privep, int16_t result)
+{
+  struct rp2040_req_s *privreq;
+  int stalled = privep->stalled;
+  irqstate_t flags;
+
+  /* Remove the completed request at the head of the endpoint request list */
+
+  flags = enter_critical_section();
+  privreq = rp2040_rqdequeue(privep);
+  leave_critical_section(flags);
+
+  if (privreq)
+    {
+      /* If endpoint 0, temporarily reflect the state of protocol stalled
+       * in the callback.
+       */
+
+      if (privep->epphy == 0)
+        {
+          if (privep->dev->stalled)
+            {
+              privep->stalled = 1;
+            }
+        }
+
+      /* Save the result in the request structure */
+
+      privreq->req.result = result;
+
+      /* Callback to the request completion handler */
+
+      privreq->flink = NULL;
+      privreq->req.callback(&privep->ep, &privreq->req);
+
+      /* Restore the stalled indication */
+
+      privep->stalled = stalled;
+    }
+}
+
+/****************************************************************************
+ * Name: rp2040_wrrequest
+ *
+ * Description:
+ *   Send from the next queued write request
+ *
+ * Returned Value:
+ *  0:not finished; 1:completed; <0:error
+ *
+ ****************************************************************************/
+
+static int rp2040_wrrequest(struct rp2040_ep_s *privep)
+{
+  struct rp2040_req_s *privreq;
+  uint8_t *buf;
+  int nbytes;
+  int bytesleft;
+  int nbyteswritten;
+
+  /* Check the request from the head of the endpoint request queue */
+
+  privreq = rp2040_rqpeek(privep);
+  if (!privreq)
+    {
+      usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_NULLREQUEST), 0);
+      return OK;
+    }
+
+  /* Otherwise send the data in the packet (in the DMA on case, we
+   * may be resuming transfer already in progress.
+   */
+
+  for (; ; )
+    {
+      /* Get the number of bytes left to be sent in the packet */
+
+      bytesleft = privreq->req.len - privreq->req.xfrd;
+
+      /* Send the next packet if (1) there are more bytes to be sent, or
+       * (2) the last packet sent was exactly maxpacketsize (bytesleft == 0)
+       */
+
+      usbtrace(TRACE_WRITE(privep->epphy), privreq->req.xfrd);
+      if (bytesleft >  0 || privep->txnullpkt)
+        {
+          /* Try to send maxpacketsize -- unless we don't have that many
+           * bytes to send.
+           */
+
+          privep->txnullpkt = 0;
+          if (bytesleft > privep->ep.maxpacket)
+            {
+              nbytes = privep->ep.maxpacket;
+            }
+          else
+            {
+              nbytes = bytesleft;
+              if ((privreq->req.flags & USBDEV_REQFLAGS_NULLPKT) != 0)
+                {
+                  privep->txnullpkt = (bytesleft == privep->ep.maxpacket);
+                }
+            }
+
+          /* Send the largest number of bytes that we can in this packet */
+
+          buf           = privreq->req.buf + privreq->req.xfrd;
+          nbyteswritten = rp2040_epwrite(privep->epphy, buf, nbytes);
+          if (nbyteswritten < 0 || nbyteswritten != nbytes)
+            {
+              usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_EWRITE), nbyteswritten);
+              return ERROR;
+            }
+
+          /* Update for the next time through the loop */
+
+          privreq->req.xfrd += nbytes;
+        }
+
+      /* If all of the bytes were sent (including any final null packet)
+       * then we are finished with the transfer
+       */
+
+      if (privreq->req.xfrd >= privreq->req.len && !privep->txnullpkt)
+        {
+          usbtrace(TRACE_COMPLETE(privep->epphy), privreq->req.xfrd);
+          privep->txnullpkt = 0;
+          rp2040_reqcomplete(privep, OK);
+          return OK;
+        }
+    }
+
+  return OK; /* Won't get here */
+}
+
+
+
+
+
 
 
 /****************************************************************************
@@ -563,6 +795,68 @@ static void rp2040_handle_zlp(FAR struct rp2040_usbdev_s *priv)
   rp2040_start_transfer(privep, NULL, 0);
 
   priv->zlp_stat = RP2040_ZLP_NONE;
+}
+
+
+
+/****************************************************************************
+ * Name: rp2040_cancelrequests
+ *
+ * Description:
+ *   Cancel all pending requests for an endpoint
+ *
+ ****************************************************************************/
+
+static void rp2040_cancelrequests(struct rp2040_ep_s *privep)
+{
+  while (!rp2040_rqempty(privep))
+    {
+      usbtrace(TRACE_COMPLETE(privep->epphy),
+               (rp2040_rqpeek(privep))->req.xfrd);
+      rp2040_reqcomplete(privep, -ESHUTDOWN);
+    }
+}
+
+/****************************************************************************
+ * Name: rp2040_epfindbyaddr
+ *
+ * Description:
+ *   Find the physical endpoint structure corresponding to a logic endpoint
+ *   address
+ *
+ ****************************************************************************/
+
+static FAR struct rp2040_ep_s *
+rp2040_epfindbyaddr(struct rp2040_usbdev_s *priv, uint16_t eplog)
+{
+  return &priv->eplist[RP2040_EPINDEX(eplog)];
+}
+
+/****************************************************************************
+ * Name: rp2040_dispatchrequest
+ *
+ * Description:
+ *   Provide unhandled setup actions to the class driver
+ *
+ ****************************************************************************/
+
+static void rp2040_dispatchrequest(struct rp2040_usbdev_s *priv,
+                                   const struct usb_ctrlreq_s *ctrl)
+{
+  int ret;
+
+  usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_DISPATCH), 0);
+  if (priv && priv->driver)
+    {
+      ret = CLASS_SETUP(priv->driver, &priv->usbdev, ctrl, NULL, 0);
+      if (ret < 0)
+        {
+          /* Stall on failure */
+
+          usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_STALLEDISPATCH), ctrl->req);
+          priv->stalled = 1;
+        }
+    }
 }
 
 /****************************************************************************
@@ -1190,19 +1484,7 @@ static int rp2040_epdisable(FAR struct usbdev_ep_s *ep)
 
   /* Cancel all queued requests */
 
-  while (!rp2040_rqempty(privep))
-    {
-      struct rp2040_req_s *privreq;
-
-      /* Dequeue from Reqbuf poll */
-
-      privreq = rp2040_rqdequeue(privep);
-
-      /* return reqbuf to function driver */
-
-      privreq->req.result = -ESHUTDOWN;
-      privreq->req.callback(ep, &privreq->req);
-    }
+  rp2040_cancelrequests(privep);
 
   spin_unlock_irqrestore(NULL, flags);
 
@@ -1378,7 +1660,6 @@ static int rp2040_epsubmit(FAR struct usbdev_ep_s *ep,
 static int rp2040_epcancel(FAR struct usbdev_ep_s *ep,
                            FAR struct usbdev_req_s *req)
 {
-  FAR struct rp2040_req_s *privreq = (FAR struct rp2040_req_s *)req;
   FAR struct rp2040_ep_s *privep = (FAR struct rp2040_ep_s *)ep;
   irqstate_t flags;
 
@@ -1394,10 +1675,9 @@ static int rp2040_epcancel(FAR struct usbdev_ep_s *ep,
 
   /* Remove request from req_queue */
 
-  flags = spin_lock_irqsave(NULL);
-  rp2040_rqdequeue(privep); /* TBD */
-  // sq_remafter(&privreq->q_ent, &privep->req_q); /* TBD */
-  spin_unlock_irqrestore(NULL, flags);
+  flags = enter_critical_section();
+  rp2040_cancelrequests(privep);
+  leave_critical_section(flags);
   return OK;
 }
 
@@ -1589,6 +1869,14 @@ static int rp2040_getframe(FAR struct usbdev_s *dev)
 {
   usbtrace(TRACE_DEVGETFRAME, 0);
 
+#ifdef CONFIG_DEBUG_FEATURES
+  if (!dev)
+    {
+      usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_INVALIDPARMS), 0);
+      return -ENODEV;
+    }
+#endif
+
   return (int)(getreg32(RP2040_USBCTRL_REGS_SOF_RD) &
                RP2040_USBCTRL_REGS_SOF_RD_COUNT_MASK);
 }
@@ -1621,8 +1909,19 @@ static int rp2040_wakeup(FAR struct usbdev_s *dev)
 
 static int rp2040_selfpowered(FAR struct usbdev_s *dev, bool selfpowered)
 {
+  FAR struct rp2040_usbdev_s *priv = (FAR struct rp2040_usbdev_s *)dev;
+
   usbtrace(TRACE_DEVSELFPOWERED, (uint16_t)selfpowered);
 
+#ifdef CONFIG_DEBUG_FEATURES
+  if (!dev)
+    {
+      usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_INVALIDPARMS), 0);
+      return -ENODEV;
+    }
+#endif
+
+  priv->selfpowered = selfpowered;
   return OK;
 }
 
