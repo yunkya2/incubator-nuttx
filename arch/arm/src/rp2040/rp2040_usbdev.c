@@ -53,6 +53,8 @@
 
 #define RP2040_NENDPOINTS       16
 
+#define RP2040_EPINDEX(eplog)   (USB_EPNO(eplog) * 2 + USB_ISEPOUT(eplog))
+
 #ifndef container_of
 #  define container_of(ptr, type, member) \
     ((type *)((void *)(ptr) - offsetof(type, member)))
@@ -511,6 +513,16 @@ static void rp2040_start_req_transfer(FAR struct rp2040_ep_s *privep,
   rp2040_start_transfer(privep, req->buf, privep->curr_req_next_len);
 }
 
+static void rp2040_transfer_zlp(FAR struct rp2040_usbdev_s *priv, bool recv)
+{
+  FAR struct rp2040_ep_s *privep;
+
+_err("%d\n", recv);
+
+  privep = &priv->eplist[RP2040_EPINDEX(recv ? 0x00 : 0x80)];
+  rp2040_start_transfer(privep, NULL, 0);
+}
+
 static int rp2040_epsubmit(FAR struct usbdev_ep_s *ep,
                            FAR struct usbdev_req_s *req)
 {
@@ -669,7 +681,7 @@ static FAR struct usbdev_ep_s *rp2040_allocep(FAR struct usbdev_s *dev,
   /* Ignore any direction bits in the logical address */
 
   epphy = USB_EPNO(eplog);
-  epindex = epphy * 2 + (1 - in);
+  epindex = RP2040_EPINDEX(eplog);
 
   if ((priv->used & 1 << epphy) && (epphy != 0))
     {
@@ -826,6 +838,7 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
   int handled = 0;
   char resp[2];
   uint8_t epnum;
+  int epindex;
 
   /* Read EP0 SETUP data */
 
@@ -866,10 +879,9 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
                 switch (priv->ctrl.type & USB_REQ_RECIPIENT_MASK)
                   {
                     case USB_REQ_RECIPIENT_ENDPOINT:
-                      epnum = USB_EPNO(priv->ctrl.index[0]);
-                      epnum = epnum * 2 + USB_ISEPOUT(priv->ctrl.index[0]);
-                      if (epnum < RP2040_NENDPOINTS * 2 &&
-                          priv->eplist[epnum].stalled == 0)
+                      epindex = RP2040_EPINDEX(priv->ctrl.index[0]);
+                      if (epindex < RP2040_NENDPOINTS * 2 &&
+                          priv->eplist[epindex].stalled == 0)
                         {
                           resp[0] = 0; /* bit0: halt */
                         }
@@ -906,24 +918,22 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
 
                 if (priv->ctrl.value[0] == USB_FEATURE_ENDPOINTHALT)
                   {
-                    epnum = USB_EPNO(priv->ctrl.index[0]);
-                    epnum = epnum * 2 + USB_ISEPOUT(priv->ctrl.index[0]);
+                    epindex = RP2040_EPINDEX(priv->ctrl.index[0]);
 //_err("clearfeature %d\n", epnum);
 //                   rp2040_epstall(&priv->eplist[epnum * 2].ep, true);
 //                   rp2040_start_transfer(&priv->eplist[0], NULL, 0);
 //                   handled = 1;
 
-                    if (epnum < RP2040_NENDPOINTS * 2)
+                    if (epindex < RP2040_NENDPOINTS * 2)
                       {
 #ifdef CONFIG_USBMSC_IGNORE_CLEAR_STALL
-                        if (!priv->eplist[epnum].ignore_clear_stall)
+                        if (!priv->eplist[epindex].ignore_clear_stall)
 #endif
                           {
-                            rp2040_epstall(&priv->eplist[epnum].ep, true);
-//                            rp2040_epstall(&priv->eplist[5].ep, true);
+                            rp2040_epstall(&priv->eplist[epindex].ep, true);
                           }
 
-                        rp2040_start_transfer(&priv->eplist[0], NULL, 0);
+                        rp2040_transfer_zlp(priv, false);
                         yyyy = 1;
                         handled = 1;
                       }
@@ -947,7 +957,7 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
 _err("setfeature\n");
                 if (priv->ctrl.value[0] == USB_FEATURE_TESTMODE)
                   {
-                    rp2040_start_transfer(&priv->eplist[0], NULL, 0);
+                    rp2040_transfer_zlp(priv, false);
                     up_udelay(1000);
 
                     if (priv->ctrl.index[1] == 0x4)
@@ -966,12 +976,11 @@ _err("setfeature\n");
                   }
                 else if (priv->ctrl.value[0] == USB_FEATURE_ENDPOINTHALT)
                   {
-                    epnum = USB_EPNO(priv->ctrl.index[0]);
-                    epnum = epnum * 2 + USB_ISEPOUT(priv->ctrl.index[0]);
-                    if (epnum < RP2040_NENDPOINTS * 2)
+                    epindex = RP2040_EPINDEX(priv->ctrl.index[0]);
+                    if (epindex < RP2040_NENDPOINTS * 2)
                       {
-                        rp2040_epstall(&priv->eplist[epnum].ep, false);
-                        rp2040_start_transfer(&priv->eplist[0], NULL, 0);
+                        rp2040_epstall(&priv->eplist[epindex].ep, false);
+                        rp2040_transfer_zlp(priv, false);
                         handled = 1;
                       }
                   }
@@ -992,7 +1001,7 @@ _err("setfeature\n");
 
               priv->dev_addr = value & 0xff;
 
-              rp2040_start_transfer(&priv->eplist[0], NULL, 0);
+              rp2040_transfer_zlp(priv, false);
               handled = 1;
               break;
             }
@@ -1209,8 +1218,9 @@ if (yyyy)
 
           if (i == 0)
             {
-              if (!xxxx)
-              rp2040_start_transfer(&priv->eplist[1], NULL, 0); /* EP0 OUT */
+              if (!xxxx) {
+                rp2040_transfer_zlp(priv, true);
+              }
               // _status_stage_xact()   opposite to endpoint
               // <- tud_control_status() or tud_control_xfer(0)
               // MSC_REQ_RESET --> USBMSC_REQ_MSRESET ??  EP_SUBMITで実行
