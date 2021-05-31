@@ -470,6 +470,7 @@ static void rp2040_start_transfer(FAR struct rp2040_ep_s *privep,
 //  uinfo("\x1b[1m" "ep:%d tx:%d pid:%d len:%d adr:%d" "\x1b[0m" "\n",
 //       privep->epphy, privep->in, privep->next_pid, len, *(uint32_t *)0x50110000);
 
+#if 0
 {
   if (privep->in && privep->epphy == 3) {
     int i;
@@ -478,6 +479,7 @@ static void rp2040_start_transfer(FAR struct rp2040_ep_s *privep,
         p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
   }
 }
+#endif
 
   val = len | RP2040_USBCTRL_DPRAM_EP_BUFF_CTRL_AVAIL;
 
@@ -494,23 +496,8 @@ static void rp2040_start_transfer(FAR struct rp2040_ep_s *privep,
 
   privep->next_pid = 1 - privep->next_pid;
 
-#if 0
-  putreg32(val & ~RP2040_USBCTRL_DPRAM_EP_BUFF_CTRL_AVAIL, privep->buf_ctrl);
-
-            __asm volatile (
-                    "b 1f\n"
-                    "1: b 1f\n"
-                    "1: b 1f\n"
-                    "1: b 1f\n"
-                    "1: b 1f\n"
-                    "1: b 1f\n"
-                    "1:\n"
-                    : : : "memory");
-
-  putreg32(val, privep->buf_ctrl);
-#else
   rp2040_buffer_control_update(privep, 0, val);
-#endif
+
   spin_unlock_irqrestore(NULL, flags);
 }
 
@@ -530,9 +517,9 @@ static int rp2040_epsubmit(FAR struct usbdev_ep_s *ep,
   FAR struct rp2040_req_s *privreq = (FAR struct rp2040_req_s *)req;
   FAR struct rp2040_ep_s *privep = (FAR struct rp2040_ep_s *)ep;
   irqstate_t flags;
-  irqstate_t flags2;
+//  irqstate_t flags2;
 
-flags2 = spin_lock_irqsave(NULL);
+//flags2 = spin_lock_irqsave(NULL);
   uinfo("%d tx:%d len:%d\n", privep->epphy, privep->in, req->len);
 
   usbtrace(TRACE_EPSUBMIT, privep->epphy);
@@ -543,29 +530,17 @@ flags2 = spin_lock_irqsave(NULL);
       return -EBUSY;
     }
 
-  if (privep->epphy == 0)
-    {
-      flags = spin_lock_irqsave(NULL);
-//      sq_addfirst(&privreq->q_ent, &privep->req_q);
-      rp2040_start_transfer(privep, req->buf, req->len);
-      req->xfrd = req->len;
-      spin_unlock_irqrestore(NULL, flags);
-      req->callback(ep, req);
-    }
-  else
-    {
-      /* Send/Receive packet request from function driver */
+  /* Send/Receive packet request from function driver */
 
-      flags = spin_lock_irqsave(NULL);
-      sq_addfirst(&privreq->q_ent, &privep->req_q);
-      if (privep->curr_req_buf == NULL)
-        {
-          rp2040_start_req_transfer(privep, req);
-        }
-      spin_unlock_irqrestore(NULL, flags);
+  flags = spin_lock_irqsave(NULL);
+  sq_addfirst(&privreq->q_ent, &privep->req_q);
+  if (privep->curr_req_buf == NULL)
+    {
+      rp2040_start_req_transfer(privep, req);
     }
+  spin_unlock_irqrestore(NULL, flags);
 
- spin_unlock_irqrestore(NULL, flags2);
+// spin_unlock_irqrestore(NULL, flags2);
   return OK;
 }
 
@@ -1194,7 +1169,7 @@ _err("short %d\n", privep->curr_req_xfrd);
                       req->xfrd = privep->curr_req_xfrd;
                       req->result = 0;
                       req->callback(&privep->ep, req);
-_err("CB %d\n", privep->curr_req_xfrd);
+//_err("CB %d\n", privep->curr_req_xfrd);
 if (yyyy)
 {
 //  while (1)
