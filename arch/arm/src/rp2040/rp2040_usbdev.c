@@ -54,6 +54,8 @@
 #define RP2040_NENDPOINTS       16
 
 #define RP2040_EPINDEX(eplog)   (USB_EPNO(eplog) * 2 + USB_ISEPOUT(eplog))
+#define RP2040_EPLOG(epindex)   (((epindex) / 2) + \
+                                 ((epindex) & 1 ? USB_DIR_OUT : USB_DIR_IN))
 
 #ifndef container_of
 #  define container_of(ptr, type, member) \
@@ -136,6 +138,8 @@ struct rp2040_usbdev_s
 
   uint16_t                    next_offset;
   uint8_t                     dev_addr;
+
+  bool                        recvzlp;
 
   uint16_t                    used;         /* used phyep */  
 
@@ -469,8 +473,8 @@ static void rp2040_start_transfer(FAR struct rp2040_ep_s *privep,
 
   flags = spin_lock_irqsave(NULL);
 
-//  uinfo("\x1b[1m" "ep:%d tx:%d pid:%d len:%d adr:%d" "\x1b[0m" "\n",
-//       privep->epphy, privep->in, privep->next_pid, len, *(uint32_t *)0x50110000);
+  uinfo("\x1b[1m" "ep:%d tx:%d len:%d pid:%d" "\x1b[0m" "\n",
+       privep->epphy, privep->in, len, privep->next_pid);
 
 #if 0
 {
@@ -541,6 +545,19 @@ static int rp2040_epsubmit(FAR struct usbdev_ep_s *ep,
     {
       return -EBUSY;
     }
+
+#if 0
+  if (privep->epphy == 0)
+    {
+      flags = spin_lock_irqsave(NULL);
+//      sq_addfirst(&privreq->q_ent, &privep->req_q);
+      rp2040_start_transfer(privep, req->buf, req->len);
+      req->xfrd = req->len;
+      spin_unlock_irqrestore(NULL, flags);
+      req->callback(ep, req);
+      return OK;
+    }
+#endif
 
   /* Send/Receive packet request from function driver */
 
@@ -827,7 +844,6 @@ static int rp2040_pullup(FAR struct usbdev_s *dev, bool enable)
  *
  ****************************************************************************/
 
-static int xxxx = 0;
 static int yyyy = 0;
 
 static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
@@ -853,7 +869,10 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
   value = GETUINT16(priv->ctrl.value);
   len = GETUINT16(priv->ctrl.len);
 
-//  uinfo("type:%x req:%d %x len:%d\n", priv->ctrl.type, priv->ctrl.req, value, len);
+  priv->recvzlp = true;
+//      priv->recvzlp = USB_REQ_ISIN(priv->ctrl.type);
+
+_err("type:%x req:%d %x len:%d\n", priv->ctrl.type, priv->ctrl.req, value, len);
 {
   uint8_t *p = &priv->ctrl.type;
 //  uinfo("%02x %02x %02x %02x %02x %02x %02x %02x\n",
@@ -862,6 +881,8 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
 
   if ((priv->ctrl.type & USB_REQ_TYPE_MASK) == USB_REQ_TYPE_STANDARD)
     {
+      priv->recvzlp = USB_REQ_ISIN(priv->ctrl.type);
+
       switch (priv->ctrl.req)
         {
           case USB_REQ_GETSTATUS:
@@ -1069,7 +1090,6 @@ _err("setfeature\n");
             break;
 
           case USB_REQ_SETCONFIGURATION:
-            xxxx = 1;
             break;
 
           default:
@@ -1091,27 +1111,120 @@ _err("setfeature\n");
     }
 }
 
-static void rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
+static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv, int epindex)
 {
   struct usbdev_req_s *req;
   sq_entry_t *q_ent;
+  struct rp2040_ep_s *privep;
+  int len;
+
+  if (epindex == 0)
+    {
+    // Endpoint Address is opposite to direction bit, this is Status Stage complete event
+      if (priv->dev_addr)
+        {
+          uinfo("setaddr %d\n", priv->dev_addr);
+          putreg32(priv->dev_addr, RP2040_USBCTRL_REGS_ADDR_ENDP);
+          priv->dev_addr = 0;
+          return;
+        }
+    }
+
+  privep = &priv->eplist[epindex];
+
+  if (privep->curr_req_buf != NULL)
+    {
+      len = getreg32(RP2040_USBCTRL_DPRAM_EP_BUF_CTRL(epindex))
+            & RP2040_USBCTRL_DPRAM_EP_BUFF_CTRL_LEN_MASK;
+
+      if (!privep->in)
+        {
+          memcpy(privep->curr_req_buf, privep->data_buf, len);
+        }
+
+      privep->curr_req_buf += len;
+      privep->curr_req_len -= len;
+      privep->curr_req_xfrd += len;
+
+      if (privep->in)
+        {
+          assert(len == privep->curr_req_next_len);
+        }
+      else
+        {
+          if (len < privep->curr_req_next_len)
+            {
+  _err("short %d\n", privep->curr_req_xfrd);
+              privep->curr_req_len = 0;
+            }
+        }
+
+      if (privep->curr_req_len == 0)
+        {
+          q_ent = sq_remlast(&privep->req_q);
+          if (q_ent)
+            {
+              req = &container_of(q_ent, struct rp2040_req_s, q_ent)->req;
+              req->xfrd = privep->curr_req_xfrd;
+              req->result = 0;
+              req->callback(&privep->ep, req);
+            }
+
+          if (privep->req_q.tail)
+            {
+              req = &container_of(privep->req_q.tail,
+                                  struct rp2040_req_s, q_ent)->req;
+              rp2040_start_req_transfer(privep, req);
+            }
+          else
+            {
+              privep->curr_req_buf = NULL;
+
+              if (epindex == 0)
+                {
+                  if (priv->recvzlp)
+                    {
+                      rp2040_transfer_zlp(priv, true);
+                      priv->recvzlp = false;
+                    }
+                }
+            }
+        }
+      else
+        {
+          privep->curr_req_next_len =
+                 privep->curr_req_len > 64 ? 64 : privep->curr_req_len;
+
+          rp2040_start_transfer(privep, privep->curr_req_buf,
+                                privep->curr_req_next_len);
+        }
+
+//    uinfo("%s %d %d\n", privep->in ? "tx" : "rx", i, len);
+    }
+  else
+    {
+       uinfo("EP0 %d\n", epindex);
+    }
+}
+
+
+static void rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
+{
   uint32_t stat = getreg32(RP2040_USBCTRL_REGS_BUFF_STATUS);
   uint32_t bit;
   int i;
-  struct rp2040_ep_s *privep;
-  irqstate_t flags;
 
 //  uinfo("%x\n", stat);
+
+retry:
 
   bit = 1;
   for (i = 0; i < RP2040_NENDPOINTS * 2 && stat != 0; i++)
     {
       if (stat & bit)
         {
-//          flags = spin_lock_irqsave(NULL);
-
           clrbits_reg32(bit, RP2040_USBCTRL_REGS_BUFF_STATUS);
-          privep = &priv->eplist[i];
+//          privep = &priv->eplist[i];
 
           int len;
 
@@ -1120,121 +1233,19 @@ static void rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
           
          uinfo("\x1b[1m" "EP:%02x %d" "\x1b[0m" "\n",
 //         uinfo("EP %02x %d\n",
-                (privep->in ? 0x80 : 0x00) + (i / 2), len);
+                RP2040_EPLOG(i), len);
 
-          if (i == 0)
-            {
-  // Endpoint Address is opposite to direction bit, this is Status Stage complete event
-              if (priv->dev_addr)
-                {
-                  uinfo("setaddr %d\n", priv->dev_addr);
-                  putreg32(priv->dev_addr, RP2040_USBCTRL_REGS_ADDR_ENDP);
-                  priv->dev_addr = 0;
-                  break;
-                }
-            }
-
-            {
-              /* IN/OUT transfer */
-
-              if (privep->curr_req_buf != NULL)
-                {
-                  int len;
-
-                  len = getreg32(RP2040_USBCTRL_DPRAM_EP_BUF_CTRL(i))
-                        & RP2040_USBCTRL_DPRAM_EP_BUFF_CTRL_LEN_MASK;
-
-                  if (!privep->in)
-                    {
-                      memcpy(privep->curr_req_buf, privep->data_buf, len);
-                    }
-
-                  privep->curr_req_buf += len;
-                  privep->curr_req_len -= len;
-                  privep->curr_req_xfrd += len;
-
-                  if (privep->in)
-                    {
-                      assert(len == privep->curr_req_next_len);
-                    }
-                  else
-                    {
-                      if (len < privep->curr_req_next_len)
-                        {
-_err("short %d\n", privep->curr_req_xfrd);
-                          privep->curr_req_len = 0;
-                        }
-                    }
-
-                  if (privep->curr_req_len == 0)
-                    {
-                      q_ent = sq_remlast(&privep->req_q);
-//                      _err("%d queue count=%d\n", privep->in, sq_count(&privep->req_q));
-                  if (q_ent)
-                    {
-                      req = &container_of(q_ent, struct rp2040_req_s, q_ent)->req;
-
-
-                      req->xfrd = privep->curr_req_xfrd;
-                      req->result = 0;
-                      req->callback(&privep->ep, req);
-//_err("CB %d\n", privep->curr_req_xfrd);
-if (yyyy)
-{
-//  while (1)
-//    ;
-}
-                    }
-
-                      if (privep->req_q.tail)
-                        {
-                          req = &container_of(privep->req_q.tail,
-                                              struct rp2040_req_s, q_ent)->req;
-                          rp2040_start_req_transfer(privep, req);
-                        }
-                      else
-                        {
-                          privep->curr_req_buf = NULL;
-                        }
-                    }
-                  else
-                    {
-                      privep->curr_req_next_len =
-                             privep->curr_req_len > 64 ? 64 : privep->curr_req_len;
-
-                      rp2040_start_transfer(privep, privep->curr_req_buf,
-                                            privep->curr_req_next_len);
-                    }
-
-//                  uinfo("%s %d %d\n", privep->in ? "tx" : "rx", i, len);
-                }
-              else
-                {
-                  uinfo("EP0 %d\n", i);
-                }
-            }
-
+          rp2040_usbintr_epdone(priv, i);
           stat &= ~bit;
-
-          if (i == 0)
-            {
-              if (!xxxx) {
-                rp2040_transfer_zlp(priv, true);
-              }
-              // _status_stage_xact()   opposite to endpoint
-              // <- tud_control_status() or tud_control_xfer(0)
-              // MSC_REQ_RESET --> USBMSC_REQ_MSRESET ??  EP_SUBMITで実行
-              // RCPT_DEVICE: TUSB_REQ_SET_CONFIGURATION,SET_FEATURE,CLEAR_FEATURE
-              // RCPT_ENDPOINT: TUSB_REQ_CLEAR_FEATURE,SET_FEATURE
-              else {
-                xxxx = 0;
-                _err("canceled\n");
-              }
-            }
-
-//          spin_unlock_irqrestore(NULL, flags);
         }
       bit <<= 1;
+    }
+
+  stat = getreg32(RP2040_USBCTRL_REGS_BUFF_STATUS);
+  if (stat)
+    {
+      uinfo("retry\n");
+      goto retry;
     }
 }
 
