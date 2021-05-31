@@ -29,7 +29,7 @@
 #include <stdint.h>
 
 #include "hardware/rp2040_usbctrl_regs.h"
-#include "hardware/rp2040_usbctrl_dpram.h"
+#include "hardware/rp2040_usbctrl_dpsram.h"
 
 /****************************************************************************
  * Pre-processor Definitions

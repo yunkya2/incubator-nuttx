@@ -310,19 +310,19 @@ static int rp2040_epconfigure(FAR struct usbdev_ep_s *ep,
        * (No need for EP0 because it has the dedicated buffer)
        */
 
-      privep->data_buf = (uint8_t *)(RP2040_USBCTRL_DPRAM_BASE +
+      privep->data_buf = (uint8_t *)(RP2040_USBCTRL_DPSRAM_BASE +
                                      priv->next_offset);
       priv->next_offset =
                      (priv->next_offset + privep->ep.maxpacket + 63) & ~63;
-      privep->ep_ctrl = RP2040_USBCTRL_DPRAM_EP_CTRL(epindex);
+      privep->ep_ctrl = RP2040_USBCTRL_DPSRAM_EP_CTRL(epindex);
 
       /* Enable EP */
 
-      putreg32(RP2040_USBCTRL_DPRAM_EP_CTRL_ENABLE |
-               RP2040_USBCTRL_DPRAM_EP_CTRL_INT_1BUF |
-               (eptype << RP2040_USBCTRL_DPRAM_EP_CTRL_EP_TYPE_SHIFT) |
+      putreg32(RP2040_USBCTRL_DPSRAM_EP_CTRL_ENABLE |
+               RP2040_USBCTRL_DPSRAM_EP_CTRL_INT_1BUF |
+               (eptype << RP2040_USBCTRL_DPSRAM_EP_CTRL_EP_TYPE_SHIFT) |
                ((uint32_t)privep->data_buf &
-                RP2040_USBCTRL_DPRAM_EP_CTRL_EP_ADDR_MASK),
+                RP2040_USBCTRL_DPSRAM_EP_CTRL_EP_ADDR_MASK),
                privep->ep_ctrl);
     }
 
@@ -510,9 +510,9 @@ static void rp2040_update_buffer_control(FAR struct rp2040_ep_s *privep,
   if (or_mask)
     {
       value |= or_mask;
-      if (or_mask & RP2040_USBCTRL_DPRAM_EP_BUFF_CTRL_AVAIL)
+      if (or_mask & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_AVAIL)
         {
-          putreg32(value & ~RP2040_USBCTRL_DPRAM_EP_BUFF_CTRL_AVAIL,
+          putreg32(value & ~RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_AVAIL,
                    privep->buf_ctrl);
 
           __asm volatile (
@@ -555,19 +555,19 @@ static void rp2040_start_transfer(FAR struct rp2040_ep_s *privep,
 
   flags = spin_lock_irqsave(NULL);
 
-  val = len | RP2040_USBCTRL_DPRAM_EP_BUFF_CTRL_AVAIL;
+  val = len | RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_AVAIL;
 
   if (privep->in)
     {
       /* Copy the transmit data into DPSRAM */
 
       memcpy(privep->data_buf, buf, len);
-      val |= RP2040_USBCTRL_DPRAM_EP_BUFF_CTRL_FULL;
+      val |= RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_FULL;
     }
 
   if (privep->next_pid)
     {
-      val |= RP2040_USBCTRL_DPRAM_EP_BUFF_CTRL_DATA1_PID;
+      val |= RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_DATA1_PID;
     }
 
   privep->next_pid = 1 - privep->next_pid;    /* Invert DATA0 <-> DATA1 */
@@ -753,7 +753,7 @@ static int rp2040_epstall_exec(FAR struct usbdev_ep_s *ep)
 
   rp2040_update_buffer_control(privep,
                     0,
-                    RP2040_USBCTRL_DPRAM_EP_BUFF_CTRL_STALL);
+                    RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_STALL);
 
   privep->pending_stall = false;
 
@@ -793,7 +793,7 @@ static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
         }
 
       rp2040_update_buffer_control(privep,
-                        ~RP2040_USBCTRL_DPRAM_EP_BUFF_CTRL_STALL,
+                        ~RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_STALL,
                         0);
     }
   else
@@ -872,11 +872,11 @@ static FAR struct usbdev_ep_s *rp2040_allocep(FAR struct usbdev_s *dev,
   privep->next_pid = 0;
   privep->stalled = false;
   privep->curr_req_buf = NULL;
-  privep->buf_ctrl = RP2040_USBCTRL_DPRAM_EP_BUF_CTRL(epindex);
+  privep->buf_ctrl = RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(epindex);
 
   if (epphy == 0)
     {
-      privep->data_buf = (uint8_t *)RP2040_USBCTRL_DPRAM_EP0_BUF_0;
+      privep->data_buf = (uint8_t *)RP2040_USBCTRL_DPSRAM_EP0_BUF_0;
       privep->ep_ctrl = 0;
     }
 
@@ -1000,7 +1000,7 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
 
   /* Read EP0 SETUP data */
 
-  memcpy(&priv->ctrl, (void *)RP2040_USBCTRL_DPRAM_SETUP_PACKET,
+  memcpy(&priv->ctrl, (void *)RP2040_USBCTRL_DPSRAM_SETUP_PACKET,
          USB_SIZEOF_CTRLREQ);
 
   priv->eplist[0].next_pid = 1;
@@ -1290,7 +1290,7 @@ static void rp2040_usbintr_setup0(FAR struct rp2040_usbdev_s *priv)
 
   /* Read EP0 SETUP data */
 
-  memcpy(&priv->ctrl, (void *)RP2040_USBCTRL_DPRAM_SETUP_PACKET,
+  memcpy(&priv->ctrl, (void *)RP2040_USBCTRL_DPSRAM_SETUP_PACKET,
          USB_SIZEOF_CTRLREQ);
   len = GETUINT16(priv->ctrl.len);
 
@@ -1359,8 +1359,8 @@ static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
       return;
     }
 
-  len = getreg32(RP2040_USBCTRL_DPRAM_EP_BUF_CTRL(epindex))
-        & RP2040_USBCTRL_DPRAM_EP_BUFF_CTRL_LEN_MASK;
+  len = getreg32(RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(epindex))
+        & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
   if (!privep->in && len > 0)
     {
       memcpy(privep->curr_req_buf, privep->data_buf, len);
@@ -1453,8 +1453,8 @@ static void rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
 
           int len;
 
-          len = getreg32(RP2040_USBCTRL_DPRAM_EP_BUF_CTRL(i))
-                         & RP2040_USBCTRL_DPRAM_EP_BUFF_CTRL_LEN_MASK;
+          len = getreg32(RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(i))
+                         & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
 
           uinfo("\x1b[1m" "EP:%02x %d" "\x1b[0m" "\n",
                 RP2040_EPLOG(i), len);
@@ -1492,7 +1492,7 @@ static void rp2040_usbintr_busreset(FAR struct rp2040_usbdev_s *priv)
   putreg32(0, RP2040_USBCTRL_REGS_ADDR_ENDP);
   priv->dev_addr = 0;
   priv->zlp_stat = RP2040_ZLP_NONE;
-  priv->next_offset = RP2040_USBCTRL_DPRAM_DATA_BUF_OFFSET;
+  priv->next_offset = RP2040_USBCTRL_DPSRAM_DATA_BUF_OFFSET;
   CLASS_DISCONNECT(priv->driver, &priv->usbdev);
   clrbits_reg32(RP2040_USBCTRL_REGS_SIE_STATUS_BUS_RESET,
                 RP2040_USBCTRL_REGS_SIE_STATUS);
@@ -1587,7 +1587,7 @@ void arm_usbinitialize(void)
   g_usbdev.usbdev.ep0 = &g_usbdev.eplist[0].ep;
 
   g_usbdev.dev_addr = 0;
-  g_usbdev.next_offset = RP2040_USBCTRL_DPRAM_DATA_BUF_OFFSET;
+  g_usbdev.next_offset = RP2040_USBCTRL_DPSRAM_DATA_BUF_OFFSET;
 
   for (i = 0; i < RP2040_NENDPOINTS * 2; i++)
     {
@@ -1629,7 +1629,7 @@ int usbdev_register(FAR struct usbdevclass_driver_s *driver)
   setbits_reg32(RP2040_RESETS_RESET_USBCTRL, RP2040_RESETS_RESET);
   clrbits_reg32(RP2040_RESETS_RESET_USBCTRL, RP2040_RESETS_RESET);
 
-  memset((void *)RP2040_USBCTRL_DPRAM_BASE, 0, 0x1000);
+  memset((void *)RP2040_USBCTRL_DPSRAM_BASE, 0, 0x1000);
 
   putreg32(RP2040_USBCTRL_REGS_USB_MUXING_SOFTCON |
            RP2040_USBCTRL_REGS_USB_MUXING_TO_PHY,
