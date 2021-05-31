@@ -646,6 +646,7 @@ static int syslog_dev_putc(FAR struct syslog_channel_s *channel, int ch)
 static int syslog_dev_force(FAR struct syslog_channel_s *channel, int ch)
 {
   UNUSED(channel);
+  up_putc(ch);
   return ch;
 }
 
