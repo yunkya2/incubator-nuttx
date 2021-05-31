@@ -31,7 +31,6 @@
 #include <string.h>
 #include <errno.h>
 #include <debug.h>
-#include <queue.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/spinlock.h>
@@ -52,13 +51,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define RP2040_NENDPOINTS       16
-
-/* Conversion between USB logical endpoint and RP2040 DPSRAM index */
-
-#define RP2040_EPINDEX(eplog)   (USB_EPNO(eplog) * 2 + USB_ISEPOUT(eplog))
-#define RP2040_EPLOG(epindex)   (((epindex) / 2) + \
-                                 ((epindex) & 1 ? USB_DIR_OUT : USB_DIR_IN))
+#include <queue.h>
 
 #ifndef container_of
 #  define container_of(ptr, type, member) \
@@ -125,6 +118,22 @@ const struct trace_msg_t g_usb_trace_strings_intdecode[] =
 };
 #endif
 
+/* Hardware interface *******************************************************/
+
+/* Hardware dependent sizes and numbers */
+
+#define RP2040_EP0MAXPACKET     64        /* EP0 max packet size */
+#define RP2040_BULKMAXPACKET    64        /* Bulk endpoint max packet */
+#define RP2040_INTRMAXPACKET    64        /* Interrupt endpoint max packet */
+#define RP2040_ISOMAXPACKET     1023      /* Isochronous max packet size */
+#define RP2040_NENDPOINTS       16
+
+/* Conversion between USB logical endpoint and RP2040 DPSRAM index */
+
+#define RP2040_EPINDEX(eplog)   (USB_EPNO(eplog) * 2 + USB_ISEPOUT(eplog))
+#define RP2040_EPLOG(epindex)   (((epindex) / 2) + \
+                                 ((epindex) & 1 ? USB_DIR_OUT : USB_DIR_IN))
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -136,16 +145,36 @@ enum rp2040_zlp_e
   RP2040_ZLP_OUT_REPLY,       /* Send ZLP to reply OUT transfer */
 };
 
+/* A container for a request so that the request make be retained in a list */
+
 struct rp2040_req_s
 {
-  struct usbdev_req_s req;        /* Standard USB request */
+  struct usbdev_req_s req;              /* Standard USB request */
+  struct rp2040_req_s *flink;           /* Supports a singly linked list */
+
   sq_entry_t          q_ent;
 };
 
+/* This is the internal representation of an endpoint */
+
 struct rp2040_ep_s
 {
-  struct usbdev_ep_s      ep;     /* Standard endpoint structure */
-  struct rp2040_usbdev_s  *dev;   /* Reference to private driver data */
+  /* Common endpoint fields.  This must be the first thing defined in the
+   * structure so that it is possible to simply cast from struct usbdev_ep_s
+   * to struct rp2040_ep_s.
+   */
+
+  struct usbdev_ep_s ep;                /* Standard endpoint structure */
+
+  /* RP2040-specific fields */
+
+  struct rp2040_usbdev_s *dev;          /* Reference to private driver data */
+  struct rp2040_req_s *head;            /* Request list for this endpoint */
+  struct rp2040_req_s *tail;
+  uint8_t epphy;                        /* Physical EP address */
+
+
+
   sq_queue_t              req_q;
 
   uint8_t *curr_buf;              /* Current transfer buffer address */
@@ -157,7 +186,6 @@ struct rp2040_ep_s
   uint32_t ep_ctrl;               /* DPSRAM EP control register address */
   uint32_t buf_ctrl;              /* DPSRAM buffer control register address */
 
-  uint8_t epphy;                  /* Physical EP address */
   bool    in;                     /* in = true, out = false */
   uint8_t type;                   /* 0:cont, 1:iso, 2:bulk, 3:int */
   bool    disable;                /* The EP is disabled */
@@ -167,11 +195,23 @@ struct rp2040_ep_s
   bool    pending_stall;          /* Pending stall request */
 };
 
+/* This structure encapsulates the overall driver state */
+
 struct rp2040_usbdev_s
 {
-  struct usbdev_s             usbdev;
+  /* Common device fields.  This must be the first thing defined in the
+   * structure so that it is possible to simply cast from struct usbdev_s
+   * to struct rp2040_usbdev_s.
+   */
+
+  struct usbdev_s usbdev;
+
+  /* The bound device class driver */
+
   struct usbdevclass_driver_s *driver;
-  struct rp2040_ep_s eplist[RP2040_NENDPOINTS * 2];
+
+  /* RP2040-specific fields */
+
 
   uint16_t next_offset;       /* Unused DPSRAM buffer offset */
   uint8_t  dev_addr;          /* USB device address */
@@ -183,13 +223,32 @@ struct rp2040_usbdev_s
   struct usb_ctrlreq_s ctrl;  /* Last EP0 request */
   uint8_t setup_out[64];
   int     setup_out_len;
+
+
+  /* The endpoint list */
+
+  struct rp2040_ep_s eplist[RP2040_NENDPOINTS * 2];
 };
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
+/* Request queue operations *************************************************/
+
+static FAR struct
+rp2040_req_s *rp2040_rqdequeue(FAR struct rp2040_ep_s *privep);
+static void rp2040_rqenqueue(FAR struct rp2040_ep_s *privep,
+                             FAR struct rp2040_req_s *req);
+
+/* Low level data transfers and request operations */
+
 static int rp2040_epstall_exec(FAR struct usbdev_ep_s *ep);
+
+/* Interrupt handling */
+
+
+/* Initialization operations */
 
 /* Endpoint methods */
 
@@ -269,6 +328,60 @@ static struct rp2040_usbdev_s g_usbdev;
  ****************************************************************************/
 
 /****************************************************************************
+ * Name: rp2040_rqdequeue
+ *
+ * Description:
+ *   Remove a request from an endpoint request queue
+ *
+ ****************************************************************************/
+
+static FAR struct
+rp2040_req_s *rp2040_rqdequeue(FAR struct rp2040_ep_s *privep)
+{
+  FAR struct rp2040_req_s *ret = privep->head;
+
+  if (ret)
+    {
+      privep->head = ret->flink;
+      if (!privep->head)
+        {
+          privep->tail = NULL;
+        }
+
+      ret->flink = NULL;
+    }
+
+  return ret;
+}
+
+/****************************************************************************
+ * Name: rp2040_rqenqueue
+ *
+ * Description:
+ *   Add a request from an endpoint request queue
+ *
+ ****************************************************************************/
+
+static void rp2040_rqenqueue(FAR struct rp2040_ep_s *privep,
+                             FAR struct rp2040_req_s *req)
+{
+  req->flink = NULL;
+  if (!privep->head)
+    {
+      privep->head = req;
+      privep->tail = req;
+    }
+  else
+    {
+      privep->tail->flink = req;
+      privep->tail        = req;
+    }
+}
+
+
+
+
+/****************************************************************************
  * Name: rp2040_update_buffer_control
  *
  * Description:
@@ -309,6 +422,35 @@ static void rp2040_update_buffer_control(FAR struct rp2040_ep_s *privep,
 
   putreg32(value, privep->buf_ctrl);
 }
+
+
+
+/****************************************************************************
+ * Name: rp2040_epwrite
+ *
+ * Description:
+ *   Endpoint write (IN)
+ *
+ ****************************************************************************/
+
+static int rp2040_epwrite(uint8_t epphy, uint8_t *buf, uint16_t nbytes)
+{
+
+}
+
+/****************************************************************************
+ * Name: rp2040_epread
+ *
+ * Description:
+ *   Endpoint read (OUT)
+ *
+ ****************************************************************************/
+
+static int rp2040_epread(uint8_t epphy, uint8_t *buf, uint16_t nbytes)
+{
+
+}
+
 
 /****************************************************************************
  * Name: rp2040_start_transfer
