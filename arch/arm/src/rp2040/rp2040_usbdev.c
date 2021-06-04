@@ -870,9 +870,7 @@ static int rp2040_ep0rdrequest(FAR struct rp2040_ep_s *privep, size_t len)
 
 
 
-
-
-
+#if 0
 
 /****************************************************************************
  * Name: rp2040_start_transfer
@@ -927,7 +925,6 @@ static void rp2040_start_transfer(FAR struct rp2040_ep_s *privep,
   spin_unlock_irqrestore(NULL, flags);
 }
 
-#if 0
 /****************************************************************************
  * Name: rp2040_start_req_transfer
  *
@@ -1382,8 +1379,7 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
 
   if (priv->eplist[1].stalled)
     {
-   rp2040_start_transfer(&priv->eplist[RP2040_EPINDEX(0x00)],
-                         priv->ep0data, len);
+      rp2040_ep0rdrequest(&priv->eplist[RP2040_EPINDEX(0x00)], len);
     }
 
   priv->eplist[0].stalled = false;
@@ -1399,9 +1395,7 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
       /* Receive the subsequent OUT data for the setup */
 
       priv->ep0reqlen = len;
-
-      rp2040_start_transfer(&priv->eplist[RP2040_EPINDEX(0x00)],
-                            priv->ep0data, len);
+      rp2040_ep0rdrequest(&priv->eplist[RP2040_EPINDEX(0x00)], len);
     }
   else
     {
@@ -1477,7 +1471,7 @@ static void rp2040_usbintr_epdone1(FAR struct rp2040_usbdev_s *priv,
     {
       privep->next_pid = 1;
       priv->ep0datlen = 0;
-      rp2040_start_transfer(privep, NULL, RP2040_EP0MAXPACKET);
+      rp2040_ep0rdrequest(privep, RP2040_EP0MAXPACKET);
       return;
     }
 
@@ -1487,7 +1481,7 @@ static void rp2040_usbintr_epdone1(FAR struct rp2040_usbdev_s *priv,
   if (priv->ep0datlen == priv->ep0reqlen)
     {
       privep->next_pid = 1;
-      rp2040_start_transfer(privep, NULL, RP2040_EP0MAXPACKET);
+      rp2040_ep0rdrequest(privep, RP2040_EP0MAXPACKET);
 
       priv->zlp_stat = RP2040_ZLP_NONE;
       rp2040_ep0setup(priv);
@@ -1495,7 +1489,7 @@ static void rp2040_usbintr_epdone1(FAR struct rp2040_usbdev_s *priv,
     }
   else
     {
-      rp2040_start_transfer(privep, NULL, RP2040_EP0MAXPACKET);
+      rp2040_ep0rdrequest(privep, RP2040_EP0MAXPACKET);
     }
 }
 
@@ -2344,7 +2338,7 @@ static int rp2040_pullup(FAR struct usbdev_s *dev, bool enable)
                     RP2040_USBCTRL_REGS_SIE_CTRL);
 
       g_usbdev.eplist[1].next_pid = 1;
-      rp2040_start_transfer(&g_usbdev.eplist[1], NULL, RP2040_EP0MAXPACKET);
+      rp2040_ep0rdrequest(&g_usbdev.eplist[1], RP2040_EP0MAXPACKET);
     }
   else
     {
