@@ -1405,13 +1405,28 @@ static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
 
 static void rp2040_usbintr_busreset(FAR struct rp2040_usbdev_s *priv)
 {
+  int i;
+
   usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_INTR_BUSRESET), 0);
 
   putreg32(0, RP2040_USBCTRL_REGS_ADDR_ENDP);
   priv->dev_addr = 0;
   priv->zlp_stat = RP2040_ZLP_NONE;
   priv->next_offset = RP2040_USBCTRL_DPSRAM_DATA_BUF_OFFSET;
-  CLASS_DISCONNECT(priv->driver, &priv->usbdev);
+
+  for (i = 0; i < RP2040_NENDPOINTS * 2; i++)
+    {
+      FAR struct rp2040_ep_s *privep = &g_usbdev.eplist[i];
+
+      rp2040_cancelrequests(privep);
+    }
+
+  rp2040_pullup(&g_usbdev.usbdev, false);
+  if (g_usbdev.driver)
+    {
+      CLASS_DISCONNECT(priv->driver, &priv->usbdev);
+    }
+
   clrbits_reg32(RP2040_USBCTRL_REGS_SIE_STATUS_BUS_RESET,
                 RP2040_USBCTRL_REGS_SIE_STATUS);
 }
