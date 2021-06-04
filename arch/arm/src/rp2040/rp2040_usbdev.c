@@ -927,6 +927,7 @@ static void rp2040_start_transfer(FAR struct rp2040_ep_s *privep,
   spin_unlock_irqrestore(NULL, flags);
 }
 
+#if 0
 /****************************************************************************
  * Name: rp2040_start_req_transfer
  *
@@ -982,8 +983,7 @@ static void rp2040_handle_zlp(FAR struct rp2040_usbdev_s *priv)
 
   priv->zlp_stat = RP2040_ZLP_NONE;
 }
-
-
+#endif
 
 /****************************************************************************
  * Name: rp2040_cancelrequests
@@ -1249,6 +1249,7 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
 
               usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_SETADDRESS), value);
               priv->dev_addr = value & 0xff;
+//              rp2040_epwrite(ep0, NULL, 0);
             }
             break;
 
@@ -1341,10 +1342,7 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
   /* TBD */
   else if (priv->zlp_stat != RP2040_ZLP_NONE)
     {
-      if (priv->eplist[1].curr_buf == NULL)
-        {
-          rp2040_handle_zlp(priv);
-        }
+      rp2040_epwrite(ep0, NULL, 0);
     }
 }
 
@@ -1439,10 +1437,10 @@ static void rp2040_usbintr_epdone2(FAR struct rp2040_usbdev_s *priv,
 
   if (privep->in)
     {
-      rp2040_txcomplete(privep);
-
       if (rp2040_rqpeek(privep))
         {
+      rp2040_txcomplete(privep);
+
       if (!rp2040_rqempty(privep))
         {
           rp2040_wrrequest(privep);
@@ -1499,8 +1497,7 @@ static void rp2040_usbintr_epdone1(FAR struct rp2040_usbdev_s *priv,
     }
 }
 
-
-
+#if 0
 static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
                                   int epindex)
 {
@@ -1568,6 +1565,7 @@ static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
                             privep->curr_len);
     }
 }
+#endif
 
 /****************************************************************************
  * Name: rp2040_usbintr_buffstat
@@ -1605,17 +1603,21 @@ static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
           uinfo("\x1b[1m" "EP:%02x %d" "\x1b[0m" "\n",
                 RP2040_EPLOG(i), len);
 
-          if (i >= 2)
-            {
-              rp2040_usbintr_epdone2(priv, i);
-            }
-          else if (i == 1)
+          if (i == 1)
             {
               rp2040_usbintr_epdone1(priv, i);
             }
           else
             {
-              rp2040_usbintr_epdone(priv, i);
+              if (i == 0 && priv->dev_addr)
+                {
+                  uinfo("setaddr 0x%x\n", priv->dev_addr);
+                  putreg32(priv->dev_addr, RP2040_USBCTRL_REGS_ADDR_ENDP);
+                  priv->dev_addr = 0;
+            //      return;
+                }
+
+              rp2040_usbintr_epdone2(priv, i);
             }
 
           stat &= ~bit;
@@ -1692,6 +1694,7 @@ static int rp2040_usbinterrupt(int irq, void *context, FAR void *arg)
 
   if (stat & RP2040_USBCTRL_REGS_INTR_SETUP_REQ)
     {
+uinfo("setup\n");
       clrbits_reg32(RP2040_USBCTRL_REGS_SIE_STATUS_SETUP_REC,
                     RP2040_USBCTRL_REGS_SIE_STATUS);
 
@@ -1707,8 +1710,6 @@ static int rp2040_usbinterrupt(int irq, void *context, FAR void *arg)
     }
 
   usbtrace(TRACE_INTEXIT(RP2040_TRACEINTID_USBINTERRUPT), 0);
-
-//  *(volatile uint32_t *)0x50100084 = 0x2440;
 
   return OK;
 }
@@ -1951,6 +1952,7 @@ static int rp2040_epsubmit(FAR struct usbdev_ep_s *ep,
 
   usbtrace(TRACE_EPSUBMIT, privep->ep.eplog);
 
+#if 0
   req->result = 0;
 
   if (privep->disable && privep->epphy != 0)
@@ -1985,7 +1987,7 @@ static int rp2040_epsubmit(FAR struct usbdev_ep_s *ep,
 
   return OK;
     }
-
+#endif
   int ret = OK;
 
   req->result = -EINPROGRESS;
