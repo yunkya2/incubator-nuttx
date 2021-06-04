@@ -1597,8 +1597,9 @@ static int rp2040_epdisable(FAR struct usbdev_ep_s *ep)
   privep->next_pid = 0;
   putreg32(0, privep->buf_ctrl);
 
-  /* Cancel all queued requests */
+  /* Cancel any ongoing activity and reset the endpoint */
 
+  rp2040_epstall(&privep->ep, false);
   rp2040_cancelrequests(privep);
 
   spin_unlock_irqrestore(NULL, flags);
