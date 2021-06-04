@@ -286,7 +286,7 @@ struct rp2040_usbdev_s
 
   uint8_t ep0data[CONFIG_USBDEV_SETUP_MAXDATASIZE];
   uint16_t ep0datlen;
-  uint16_t ep0dreqlen;
+  uint16_t ep0reqlen;
 
   /* The endpoint list */
 
@@ -1224,6 +1224,7 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
 
               usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_SETADDRESS), value);
               priv->dev_addr = value & 0xff;
+//              rp2040_epwrite(ep0, NULL, 0);
             }
             break;
 
@@ -1353,11 +1354,11 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
   priv->zlp_stat = USB_REQ_ISIN(priv->ctrl.type) ? RP2040_ZLP_IN_REPLY :
                                                    RP2040_ZLP_OUT_REPLY;
 
-  if (USB_REQ_ISOUT(priv->ctrl.type) && len > 0)
+  if (USB_REQ_ISOUT(priv->ctrl.type) && len != priv->ep0datlen)
     {
       /* Receive the subsequent OUT data for the setup */
 
-      priv->ep0datlen = len;
+      priv->ep0reqlen = len;
       rp2040_start_transfer(&priv->eplist[RP2040_EPINDEX(0x00)],
                             priv->ep0data, len);
     }
@@ -1365,6 +1366,7 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
     {
       /* Start the setup */
 
+      priv->ep0reqlen = 0;
       rp2040_ep0setup(priv);
     }
 }
@@ -1419,81 +1421,30 @@ static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
 
   privep = &priv->eplist[epindex];
 
-  if (priv->ep0datlen > 0 && epindex == 1)
-    {
-      memcpy(priv->ep0data, privep->data_buf, priv->ep0datlen);
+  len = getreg32(RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(epindex))
+        & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
+
+  uinfo("done %d\n", len);
+
+  if (len == 0)
+      {
+      privep->next_pid = 1;
       priv->ep0datlen = 0;
-      priv->zlp_stat = RP2040_ZLP_NONE;
-      rp2040_ep0setup(priv);
       return;
     }
 
-  len = getreg32(RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(epindex))
-        & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
-  if (!privep->in && len > 0)
-    {
-      memcpy(privep->curr_buf, privep->data_buf, len);
-    }
+  memcpy(priv->ep0data + priv->ep0datlen, privep->data_buf, len);
+  priv->ep0datlen += len;
 
-  privep->curr_buf += len;
-  privep->curr_total_len -= len;
-  privep->curr_xfrd_len += len;
-
-  if (privep->in)
+  if (priv->ep0datlen == priv->ep0reqlen)
     {
-      DEBUGASSERT(len == privep->curr_len);
+      priv->zlp_stat = RP2040_ZLP_NONE;
+      rp2040_ep0setup(priv);
+      priv->ep0datlen = 0;
     }
   else
     {
-      if (len < privep->curr_len)
-        {
-          /* short packet */
-
-          privep->curr_total_len = 0;
-        }
-    }
-
-  if (privep->curr_total_len == 0)
-    {
-      privreq = rp2040_rqdequeue(privep);
-      if (privreq != NULL)      
-        {
-          privreq->req.xfrd = privep->curr_xfrd_len;
-
-          usbtrace(TRACE_COMPLETE(privep->epphy), privreq->req.xfrd);
-
-          if (privreq->req.callback)
-            {
-              privreq->req.result = 0;
-              privreq->req.callback(&privep->ep, &privreq->req);
-            }
-        }
-      else
-        {
-          usbtrace(TRACE_COMPLETE(privep->epphy), 0);
-        }
-
-      privreq = rp2040_rqpeek(privep);
-      if (privreq != NULL)
-        {
-          rp2040_start_req_transfer(privep, &privreq->req);
-        }
-      else
-        {
-          privep->curr_buf = NULL;
-
-          if (privep->pending_stall)
-            {
-              rp2040_epstall_exec(&privep->ep);
-            }
-        }
-    }
-  else
-    {
-      privep->curr_len =
-             privep->curr_total_len > 64 ? 64 : privep->curr_total_len;
-      rp2040_start_transfer(privep, privep->curr_buf,
-                            privep->curr_len);
+      rp2040_start_transfer(privep, NULL, RP2040_EP0MAXPACKET);
     }
 }
 
