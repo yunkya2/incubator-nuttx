@@ -862,6 +862,8 @@ static int rp2040_ep0rdrequest(FAR struct rp2040_ep_s *privep, size_t len)
 
 static void rp2040_cancelrequests(struct rp2040_ep_s *privep)
 {
+  /* TBD force stop */
+
   while (!rp2040_rqempty(privep))
     {
       usbtrace(TRACE_COMPLETE(privep->epphy),
@@ -1228,6 +1230,7 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
 
   memcpy(&priv->ctrl, (void *)RP2040_USBCTRL_DPSRAM_SETUP_PACKET,
          USB_SIZEOF_CTRLREQ);
+  memset((void *)RP2040_USBCTRL_DPSRAM_SETUP_PACKET, 0, USB_SIZEOF_CTRLREQ);
   len = GETUINT16(priv->ctrl.len);
 
 
@@ -1443,6 +1446,11 @@ static void rp2040_usbintr_busreset(FAR struct rp2040_usbdev_s *priv)
 
   clrbits_reg32(RP2040_USBCTRL_REGS_SIE_STATUS_BUS_RESET,
                 RP2040_USBCTRL_REGS_SIE_STATUS);
+
+  {
+    extern xxx;
+    xxx = 0;
+  }
 }
 
 /****************************************************************************
