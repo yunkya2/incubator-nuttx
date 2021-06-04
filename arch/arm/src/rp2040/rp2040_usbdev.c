@@ -1340,9 +1340,11 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
     }
 
   /* TBD */
-  else if (priv->zlp_stat != RP2040_ZLP_NONE)
+  else if (priv->zlp_stat == RP2040_ZLP_OUT_REPLY)
     {
+      privep->next_pid = 1;   /* ZLP is always sent by DATA1 packet */
       rp2040_epwrite(ep0, NULL, 0);
+      priv->zlp_stat = RP2040_ZLP_NONE;
     }
 }
 
@@ -1437,10 +1439,10 @@ static void rp2040_usbintr_epdone2(FAR struct rp2040_usbdev_s *priv,
 
   if (privep->in)
     {
-      if (rp2040_rqpeek(privep))
-        {
       rp2040_txcomplete(privep);
 
+      if (rp2040_rqpeek(privep))
+        {
       if (!rp2040_rqempty(privep))
         {
           rp2040_wrrequest(privep);
