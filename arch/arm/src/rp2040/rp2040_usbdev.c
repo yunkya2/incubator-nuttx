@@ -1392,10 +1392,10 @@ static void rp2040_usbintr_epdone2(FAR struct rp2040_usbdev_s *priv,
 
   if (privep->in)
     {
-      rp2040_txcomplete(privep);
-
       if (!rp2040_rqempty(privep))
         {
+          rp2040_txcomplete(privep);
+
           rp2040_wrrequest(privep);
         }
       else
@@ -1416,17 +1416,6 @@ static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
   struct rp2040_req_s *privreq;
   struct rp2040_ep_s *privep;
   int len;
-
-  if (epindex == 0)
-    {
-      if (priv->dev_addr)
-        {
-          uinfo("setaddr 0x%x\n", priv->dev_addr);
-          putreg32(priv->dev_addr, RP2040_USBCTRL_REGS_ADDR_ENDP);
-          priv->dev_addr = 0;
-          return;
-        }
-    }
 
   privep = &priv->eplist[epindex];
 
@@ -1544,13 +1533,20 @@ static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
           uinfo("\x1b[1m" "EP:%02x %d" "\x1b[0m" "\n",
                 RP2040_EPLOG(i), len);
 
-          if (i >= 2)
+          if (i == 1)
             {
-              rp2040_usbintr_epdone2(priv, i);
+              rp2040_usbintr_epdone(priv, i);
             }
           else
             {
-              rp2040_usbintr_epdone(priv, i);
+              if (i == 0 && priv->dev_addr)
+                {
+                  uinfo("setaddr 0x%x\n", priv->dev_addr);
+                  putreg32(priv->dev_addr, RP2040_USBCTRL_REGS_ADDR_ENDP);
+                  priv->dev_addr = 0;
+                }
+
+              rp2040_usbintr_epdone2(priv, i);
             }
 
           stat &= ~bit;
@@ -1625,6 +1621,7 @@ static int rp2040_usbinterrupt(int irq, void *context, FAR void *arg)
 
   if (stat & RP2040_USBCTRL_REGS_INTR_SETUP_REQ)
     {
+uinfo("setup\n");
       clrbits_reg32(RP2040_USBCTRL_REGS_SIE_STATUS_SETUP_REC,
                     RP2040_USBCTRL_REGS_SIE_STATUS);
 
@@ -1881,41 +1878,6 @@ static int rp2040_epsubmit(FAR struct usbdev_ep_s *ep,
 #endif
 
   usbtrace(TRACE_EPSUBMIT, privep->ep.eplog);
-
-  req->result = 0;
-
-  if (privep->disable && privep->epphy != 0)
-    {
-      return -EBUSY;
-    }
-
-  if (privep->epphy == 0)
-    {
-  /* Send/Receive packet request from function driver */
-
-  flags = spin_lock_irqsave(NULL);
-
-  rp2040_rqenqueue(privep, privreq);
-    if (privep->curr_buf == NULL)
-    {
-      rp2040_start_req_transfer(privep, req);
-    }
-  else
-    {
-      if (privep->in)
-        {
-          usbtrace(TRACE_INREQQUEUED(privep->epphy), privreq->req.len);
-        }
-      else
-        {
-          usbtrace(TRACE_OUTREQQUEUED(privep->epphy), privreq->req.len);
-        }
-    }
-
-  spin_unlock_irqrestore(NULL, flags);
-
-  return OK;
-    }
 
   int ret = OK;
 
