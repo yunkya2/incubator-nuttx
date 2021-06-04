@@ -1064,8 +1064,10 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
                        (privep = rp2040_epfindbyaddr(priv, index)) != NULL)
                 {
                   privep->halted = 0;
+                  privep->next_pid = 0;
                   rp2040_epstall(&privep->ep, true);
                   rp2040_epwrite(ep0, NULL, 0);
+                  return;
                 }
               else
                 {
