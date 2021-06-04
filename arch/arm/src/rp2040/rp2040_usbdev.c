@@ -72,15 +72,18 @@
 #define RP2040_TRACEERR_DRIVER            0x0005
 #define RP2040_TRACEERR_EPREAD            0x0006
 #define RP2040_TRACEERR_EWRITE            0x0007
-#define RP2040_TRACEERR_NULLREQUEST       0x0008
-#define RP2040_TRACEERR_REQABORTED        0x0009
-#define RP2040_TRACEERR_STALLEDCLRFEATURE 0x000a
-#define RP2040_TRACEERR_STALLEDISPATCH    0x000b
-#define RP2040_TRACEERR_STALLEDGETST      0x000c
-#define RP2040_TRACEERR_STALLEDGETSTEP    0x000d
-#define RP2040_TRACEERR_STALLEDGETSTRECIP 0x000e
-#define RP2040_TRACEERR_STALLEDREQUEST    0x000f
-#define RP2040_TRACEERR_STALLEDSETFEATURE 0x0010
+#define RP2040_TRACEERR_NULLPACKET        0x0008
+#define RP2040_TRACEERR_NULLREQUEST       0x0009
+#define RP2040_TRACEERR_REQABORTED        0x000a
+#define RP2040_TRACEERR_STALLEDCLRFEATURE 0x000b
+#define RP2040_TRACEERR_STALLEDISPATCH    0x000c
+#define RP2040_TRACEERR_STALLEDGETST      0x000d
+#define RP2040_TRACEERR_STALLEDGETSTEP    0x000e
+#define RP2040_TRACEERR_STALLEDGETSTRECIP 0x000f
+#define RP2040_TRACEERR_STALLEDREQUEST    0x0010
+#define RP2040_TRACEERR_STALLEDSETFEATURE 0x0011
+#define RP2040_TRACEERR_TXREQLOST         0x0012
+#define RP2040_TRACEERR_RXREQLOST         0x0013
 
 /* Trace interrupt codes */
 
@@ -101,6 +104,7 @@
 #define RP2040_TRACEINTID_INTR_SETUP     15
 #define RP2040_TRACEINTID_TESTMODE       16
 #define RP2040_TRACEINTID_DISPATCH       17
+#define RP2040_TRACEINTID_EPOUTQEMPTY    18
 
 #ifdef CONFIG_USBDEV_TRACE_STRINGS
 const struct trace_msg_t g_usb_trace_strings_deverror[] =
@@ -112,6 +116,7 @@ const struct trace_msg_t g_usb_trace_strings_deverror[] =
   TRACE_STR(RP2040_TRACEERR_DRIVER),
   TRACE_STR(RP2040_TRACEERR_EPREAD),
   TRACE_STR(RP2040_TRACEERR_EWRITE),
+  TRACE_STR(RP2040_TRACEERR_NULLPACKET),
   TRACE_STR(RP2040_TRACEERR_NULLREQUEST),
   TRACE_STR(RP2040_TRACEERR_REQABORTED),
   TRACE_STR(RP2040_TRACEERR_STALLEDCLRFEATURE),
@@ -121,6 +126,8 @@ const struct trace_msg_t g_usb_trace_strings_deverror[] =
   TRACE_STR(RP2040_TRACEERR_STALLEDGETSTRECIP),
   TRACE_STR(RP2040_TRACEERR_STALLEDREQUEST),
   TRACE_STR(RP2040_TRACEERR_STALLEDSETFEATURE),
+  TRACE_STR(RP2040_TRACEERR_TXREQLOST),
+  TRACE_STR(RP2040_TRACEERR_RXREQLOST),
   TRACE_STR_END
 };
 
@@ -141,6 +148,7 @@ const struct trace_msg_t g_usb_trace_strings_intdecode[] =
   TRACE_STR(RP2040_TRACEINTID_INTR_SETUP),
   TRACE_STR(RP2040_TRACEINTID_TESTMODE),
   TRACE_STR(RP2040_TRACEINTID_DISPATCH),
+  TRACE_STR(RP2040_TRACEINTID_EPOUTQEMPTY),
   TRACE_STR_END
 };
 #endif
@@ -297,10 +305,35 @@ static void rp2040_rqenqueue(FAR struct rp2040_ep_s *privep,
 
 /* Low level data transfers and request operations */
 
+static int rp2040_epwrite(FAR struct rp2040_ep_s *privep, FAR uint8_t *buf,
+                          uint16_t nbytes);
+static inline void rp2040_abortrequest(struct rp2040_ep_s *privep,
+                                       struct rp2040_req_s *privreq,
+                                       int16_t result);
+static void rp2040_reqcomplete(struct rp2040_ep_s *privep, int16_t result);
+static void rp2040_txcomplete(FAR struct rp2040_ep_s *privep);
+static int rp2040_wrrequest(struct rp2040_ep_s *privep);
+static void rp2040_rxcomplete(FAR struct rp2040_ep_s *privep);
+static int rp2040_rdrequest(FAR struct rp2040_ep_s *privep);
+
+static void rp2040_cancelrequests(struct rp2040_ep_s *privep);
+static FAR struct rp2040_ep_s *
+  rp2040_epfindbyaddr(struct rp2040_usbdev_s *priv, uint16_t eplog);
+static void rp2040_dispatchrequest(struct rp2040_usbdev_s *priv);
+static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv);
+
+
+
 static int rp2040_epstall_exec(FAR struct usbdev_ep_s *ep);
 
 /* Interrupt handling */
 
+static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv);
+static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
+                                  int epindex);
+static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv);
+static void rp2040_usbintr_busreset(FAR struct rp2040_usbdev_s *priv);
+static int rp2040_usbinterrupt(int irq, void *context, FAR void *arg);
 
 /* Initialization operations */
 
@@ -512,7 +545,17 @@ static int rp2040_epwrite(FAR struct rp2040_ep_s *privep, FAR uint8_t *buf,
         (privep->next_pid ?
          RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_DATA1_PID : 0);
 
+    /*  RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LAST */
+
   privep->next_pid = 1 - privep->next_pid;    /* Invert DATA0 <-> DATA1 */
+
+  /* Send NULL packet request */
+#if 0
+  if (privep->txnullpkt)
+    {
+      ctrl |= USB_SENDNULL;
+    }
+#endif
 
   /* Start the transfer */
 
@@ -522,31 +565,6 @@ static int rp2040_epwrite(FAR struct rp2040_ep_s *privep, FAR uint8_t *buf,
 
   return bytesleft;
 }
-
-/****************************************************************************
- * Name: rp2040_epread
- *
- * Description:
- *   Endpoint read (OUT)
- *
- ****************************************************************************/
-
-static int rp2040_epread(uint8_t epphy, uint8_t *buf, uint16_t nbytes)
-{
-  FAR struct rp2040_ep_s *privep = &g_usbdev.eplist[epphy * 2 + 1];
-  uint16_t bytesleft;
-  uint32_t val;
-  irqstate_t flags;
-  int epindex = epphy * 2 + 1;
-
-  bytesleft = getreg32(RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(epindex))
-              & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
-
-  usbtrace(TRACE_READ(epphy), bytesleft); /* TBD */
-
-}
-
-
 
 /****************************************************************************
  * Name: rp2040_abortrequest
@@ -600,10 +618,7 @@ static void rp2040_reqcomplete(struct rp2040_ep_s *privep, int16_t result)
 
       if (privep->epphy == 0)
         {
-          if (privep->dev->stalled)
-            {
-              privep->stalled = 1;
-            }
+          privep->stalled = privep->dev->stalled;
         }
 
       /* Save the result in the request structure */
@@ -618,6 +633,38 @@ static void rp2040_reqcomplete(struct rp2040_ep_s *privep, int16_t result)
       /* Restore the stalled indication */
 
       privep->stalled = stalled;
+    }
+}
+
+/****************************************************************************
+ * Name: rp2040_txcomplete
+ *
+ * Description:
+ *   Transfer is completed.
+ *   if exist queued request, do the next transfer request.
+ *
+ ****************************************************************************/
+
+static void rp2040_txcomplete(FAR struct rp2040_ep_s *privep)
+{
+  FAR struct rp2040_req_s *privreq;
+
+  privreq = rp2040_rqpeek(privep);
+  if (!privreq)
+    {
+      usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_TXREQLOST), privep->epphy);
+    }
+  else
+    {
+      privreq->req.xfrd += getreg32(privep->buf_ctrl)
+                           & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
+
+      if (privreq->req.xfrd >= privreq->req.len && !privep->txnullpkt)
+        {
+          usbtrace(TRACE_COMPLETE(privep->epphy), privreq->req.xfrd);
+          privep->txnullpkt = 0;
+          rp2040_reqcomplete(privep, OK);
+        }
     }
 }
 
@@ -638,7 +685,6 @@ static int rp2040_wrrequest(struct rp2040_ep_s *privep)
   uint8_t *buf;
   int nbytes;
   int bytesleft;
-  int nbyteswritten;
 
   /* Check the request from the head of the endpoint request queue */
 
@@ -649,70 +695,149 @@ static int rp2040_wrrequest(struct rp2040_ep_s *privep)
       return OK;
     }
 
-  /* Otherwise send the data in the packet (in the DMA on case, we
-   * may be resuming transfer already in progress.
-   */
+  /* Ignore any attempt to send a zero length packet on anything but EP0IN */
 
-  for (; ; )
+  if (privreq->req.len == 0)
     {
-      /* Get the number of bytes left to be sent in the packet */
-
-      bytesleft = privreq->req.len - privreq->req.xfrd;
-
-      /* Send the next packet if (1) there are more bytes to be sent, or
-       * (2) the last packet sent was exactly maxpacketsize (bytesleft == 0)
-       */
-
-      usbtrace(TRACE_WRITE(privep->epphy), privreq->req.xfrd);
-      if (bytesleft >  0 || privep->txnullpkt)
+      if (privep->epphy == 0)
         {
-          /* Try to send maxpacketsize -- unless we don't have that many
-           * bytes to send.
-           */
-
-          privep->txnullpkt = 0;
-          if (bytesleft > privep->ep.maxpacket)
-            {
-              nbytes = privep->ep.maxpacket;
-            }
-          else
-            {
-              nbytes = bytesleft;
-              if ((privreq->req.flags & USBDEV_REQFLAGS_NULLPKT) != 0)
-                {
-                  privep->txnullpkt = (bytesleft == privep->ep.maxpacket);
-                }
-            }
-
-          /* Send the largest number of bytes that we can in this packet */
-
-          buf           = privreq->req.buf + privreq->req.xfrd;
-          nbyteswritten = rp2040_epwrite(privep, buf, nbytes);
-          if (nbyteswritten < 0 || nbyteswritten != nbytes)
-            {
-              usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_EWRITE), nbyteswritten);
-              return ERROR;
-            }
-
-          /* Update for the next time through the loop */
-
-          privreq->req.xfrd += nbytes;
+          rp2040_epwrite(privep, NULL, 0);
+        }
+      else
+        {
+          usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_NULLPACKET), 0);
         }
 
-      /* If all of the bytes were sent (including any final null packet)
-       * then we are finished with the transfer
-       */
-
-      if (privreq->req.xfrd >= privreq->req.len && !privep->txnullpkt)
-        {
-          usbtrace(TRACE_COMPLETE(privep->epphy), privreq->req.xfrd);
-          privep->txnullpkt = 0;
-          rp2040_reqcomplete(privep, OK);
-          return OK;
-        }
+      return OK;
     }
 
-  return OK; /* Won't get here */
+  /* Get the number of bytes left to be sent in the packet */
+
+  bytesleft = privreq->req.len - privreq->req.xfrd;
+
+  /* Send the next packet if (1) there are more bytes to be sent, or
+   * (2) the last packet sent was exactly maxpacketsize (bytesleft == 0)
+   */
+
+  usbtrace(TRACE_WRITE(privep->epphy), (uint16_t)bytesleft);
+  if (bytesleft >  0 || privep->txnullpkt)
+    {
+      /* Try to send maxpacketsize -- unless we don't have that many
+       * bytes to send.
+       */
+
+      privep->txnullpkt = 0;
+      if (bytesleft > privep->ep.maxpacket)
+        {
+          nbytes = privep->ep.maxpacket;
+        }
+      else
+        {
+          nbytes = bytesleft;
+          if ((privreq->req.flags & USBDEV_REQFLAGS_NULLPKT) != 0)
+            {
+              privep->txnullpkt = (bytesleft == privep->ep.maxpacket);
+            }
+        }
+
+      /* Send the largest number of bytes that we can in this packet */
+
+      buf           = privreq->req.buf + privreq->req.xfrd;
+      rp2040_epwrite(privep, buf, nbytes);
+    }
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: rp2040_rxcomplete
+ *
+ * Description:
+ *   Notify the upper layer and continue to next receive request.
+ *
+ ****************************************************************************/
+
+static void rp2040_rxcomplete(FAR struct rp2040_ep_s *privep)
+{
+  FAR struct rp2040_req_s *privreq;
+  uint16_t nrxbytes;
+
+  nrxbytes = getreg32(privep->buf_ctrl)
+             & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
+
+  privreq = rp2040_rqpeek(privep);
+  if (!privreq)
+    {
+      usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_RXREQLOST), privep->epphy);
+      return;
+    }
+
+  memcpy(privreq->req.buf + privreq->req.xfrd, privep->data_buf, nrxbytes);
+
+  privreq->req.xfrd += nrxbytes;
+
+  if (privreq->req.xfrd >= privreq->req.len ||
+      nrxbytes < privep->ep.maxpacket)
+    {
+      usbtrace(TRACE_COMPLETE(privep->epphy), privreq->req.xfrd);
+      rp2040_reqcomplete(privep, OK);
+    }
+
+  rp2040_rdrequest(privep);
+}
+
+/****************************************************************************
+ * Name: rp2040_rdrequest
+ *
+ * Description:
+ *   Receive to the next queued read request
+ *
+ ****************************************************************************/
+
+static int rp2040_rdrequest(FAR struct rp2040_ep_s *privep)
+{
+  FAR struct rp2040_req_s *privreq;
+  uint32_t val;
+  irqstate_t flags;
+
+  /* Check the request from the head of the endpoint request queue */
+
+  privreq = rp2040_rqpeek(privep);
+  if (!privreq)
+    {
+      usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_EPOUTQEMPTY), 0);
+      return OK;
+    }
+
+  /* Receive the next packet */
+
+#if 0
+  if (!IS_BS_HOST_BUSY(desc))  /* TBD */
+    {
+      return OK;
+    }
+#endif
+
+  usbtrace(TRACE_READ(privep->epphy), privreq->req.len);
+
+  /* Ready to receive next packet */
+
+  val = privreq->req.len |
+        RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_AVAIL |
+        (privep->next_pid ?
+         RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_DATA1_PID : 0);
+
+    /*  RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LAST */
+
+  privep->next_pid = 1 - privep->next_pid;    /* Invert DATA0 <-> DATA1 */
+
+  /* Start the transfer */
+
+  flags = spin_lock_irqsave(NULL);
+  rp2040_update_buffer_control(privep, 0, val);
+  spin_unlock_irqrestore(NULL, flags);
+
+  return OK;
 }
 
 
