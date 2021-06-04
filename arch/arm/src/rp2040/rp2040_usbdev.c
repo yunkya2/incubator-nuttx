@@ -178,13 +178,6 @@ const struct trace_msg_t g_usb_trace_strings_intdecode[] =
  * Private Types
  ****************************************************************************/
 
-enum rp2040_zlp_e
-{
-  RP2040_ZLP_NONE = 0,        /* Don't send/receive Zero Length Packet */
-  RP2040_ZLP_IN_REPLY,        /* Receive ZLP to reply IN transfer */
-  RP2040_ZLP_OUT_REPLY,       /* Send ZLP to reply OUT transfer */
-};
-
 /* A container for a request so that the request make be retained in a list */
 
 struct rp2040_req_s
@@ -248,8 +241,6 @@ struct rp2040_usbdev_s
 
   uint16_t next_offset;       /* Unused DPSRAM buffer offset */
   uint8_t  dev_addr;          /* USB device address */
-
-  enum rp2040_zlp_e zlp_stat; /* Pending EP0 ZLP status */
 
   uint16_t used;              /* used epphy */
 
@@ -919,14 +910,7 @@ static void rp2040_dispatchrequest(struct rp2040_usbdev_s *priv)
                    priv->ctrl.req);
           priv->stalled = 1;
         }
- 
-      /* TBD */
-      if (!priv->stalled && USB_REQ_ISOUT(priv->ctrl.type))
-        {
-          priv->zlp_stat = RP2040_ZLP_NONE; /* already sent */
-        }
-
-   }
+    }
 }
 
 /****************************************************************************
@@ -1127,7 +1111,7 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
 
               usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_SETADDRESS), value);
               priv->dev_addr = value & 0xff;
-//              rp2040_epwrite(ep0, NULL, 0);
+              rp2040_epwrite(ep0, NULL, 0);
             }
             break;
 
@@ -1217,6 +1201,7 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
       rp2040_epstall(&priv->eplist[1].ep, false);
     }
 
+#if 0
   /* TBD */
   else if (priv->zlp_stat == RP2040_ZLP_OUT_REPLY)
     {
@@ -1224,6 +1209,7 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
       rp2040_epwrite(ep0, NULL, 0);
       priv->zlp_stat = RP2040_ZLP_NONE;
     }
+#endif
 }
 
 /****************************************************************************
@@ -1265,11 +1251,6 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
 
   priv->eplist[0].stalled = false;
   priv->eplist[1].stalled = false;
-
-  /* ZLP type in status stage */
-
-  priv->zlp_stat = USB_REQ_ISIN(priv->ctrl.type) ? RP2040_ZLP_IN_REPLY :
-                                                   RP2040_ZLP_OUT_REPLY;
 
   if (USB_REQ_ISOUT(priv->ctrl.type) && len != priv->ep0datlen)
     {
@@ -1359,8 +1340,6 @@ static void rp2040_usbintr_epdone1(FAR struct rp2040_usbdev_s *priv,
     {
       privep->next_pid = 1;
       rp2040_ep0rdrequest(privep, RP2040_EP0MAXPACKET);
-
-      priv->zlp_stat = RP2040_ZLP_NONE;
       rp2040_ep0setup(priv);
       priv->ep0datlen = 0;
     }
@@ -1447,7 +1426,6 @@ static void rp2040_usbintr_busreset(FAR struct rp2040_usbdev_s *priv)
 
   putreg32(0, RP2040_USBCTRL_REGS_ADDR_ENDP);
   priv->dev_addr = 0;
-  priv->zlp_stat = RP2040_ZLP_NONE;
   priv->next_offset = RP2040_USBCTRL_DPSRAM_DATA_BUF_OFFSET;
 
   for (i = 0; i < RP2040_NENDPOINTS * 2; i++)
@@ -1892,7 +1870,6 @@ static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
       rp2040_update_buffer_control(privep,
                         0,
                         RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_STALL);
-      priv->zlp_stat = RP2040_ZLP_NONE;
     }
 
   spin_unlock_irqrestore(NULL, flags);
