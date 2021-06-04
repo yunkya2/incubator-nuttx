@@ -232,6 +232,7 @@ struct rp2040_ep_s
   bool    pending_stall;          /* Pending stall request */
 
   bool    halted;
+  bool    txwait;
 };
 
 /* This structure encapsulates the overall driver state */
@@ -1376,6 +1377,39 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
  *
  ****************************************************************************/
 
+static void rp2040_usbintr_epdone2(FAR struct rp2040_usbdev_s *priv,
+                                  int epindex)
+{
+  struct rp2040_req_s *privreq;
+  struct rp2040_ep_s *privep;
+  int len;
+
+
+  privep = &priv->eplist[epindex];
+
+  len = getreg32(RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(epindex))
+        & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
+
+  if (privep->in)
+    {
+      rp2040_txcomplete(privep);
+
+      if (!rp2040_rqempty(privep))
+        {
+          rp2040_wrrequest(privep);
+        }
+      else
+        {
+          privep->txwait = 1;
+        }
+    }
+  else
+    {
+      rp2040_rxcomplete(privep);
+    }
+}
+
+
 static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
                                   int epindex)
 {
@@ -1510,7 +1544,15 @@ static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
           uinfo("\x1b[1m" "EP:%02x %d" "\x1b[0m" "\n",
                 RP2040_EPLOG(i), len);
 
-          rp2040_usbintr_epdone(priv, i);
+          if (i >= 2)
+            {
+              rp2040_usbintr_epdone2(priv, i);
+            }
+          else
+            {
+              rp2040_usbintr_epdone(priv, i);
+            }
+
           stat &= ~bit;
         }
 
@@ -1847,6 +1889,8 @@ static int rp2040_epsubmit(FAR struct usbdev_ep_s *ep,
       return -EBUSY;
     }
 
+  if (privep->epphy == 0)
+    {
   /* Send/Receive packet request from function driver */
 
   flags = spin_lock_irqsave(NULL);
@@ -1871,6 +1915,66 @@ static int rp2040_epsubmit(FAR struct usbdev_ep_s *ep,
   spin_unlock_irqrestore(NULL, flags);
 
   return OK;
+    }
+
+  int ret = OK;
+
+  req->result = -EINPROGRESS;
+  req->xfrd = 0;
+
+  flags = enter_critical_section();
+
+  if (privep->stalled && privep->in)
+    {
+      rp2040_abortrequest(privep, privreq, -EBUSY);
+      ret = -EBUSY;
+    }
+  /* Handle IN (device-to-host) requests */
+  else if (privep->in)
+    {
+      /* Add the new request to the request queue for the IN endpoint */
+
+      int empty = rp2040_rqempty(privep);
+
+      rp2040_rqenqueue(privep, privreq);
+      usbtrace(TRACE_INREQQUEUED(privep->epphy), privreq->req.len);
+
+#if 0
+      /* If IN transaction has been requested, clear NAK bit to be able
+       * to raise IN interrupt to start IN packets.
+       */
+
+      if (privep->txwait)
+        {
+          rp2040_wrrequest(privep); /* OK ? */
+        }
+#endif
+      if (empty)
+        {
+          rp2040_wrrequest(privep);
+        }
+    }
+  /* Handle OUT (host-to-device) requests */
+  else
+    {
+      /* Add the new request to the request queue for the OUT endpoint */
+
+      int empty = rp2040_rqempty(privep);
+
+      privep->txnullpkt = 0;
+      rp2040_rqenqueue(privep, privreq);
+      usbtrace(TRACE_OUTREQQUEUED(privep->epphy), privreq->req.len);
+
+      /* This there a incoming data pending the availability of a request? */
+
+      if (empty)
+        {
+          ret = rp2040_rdrequest(privep);
+        }
+    }
+
+  leave_critical_section(flags);
+  return ret;
 }
 
 /****************************************************************************
