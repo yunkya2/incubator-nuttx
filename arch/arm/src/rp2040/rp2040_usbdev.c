@@ -213,12 +213,6 @@ struct rp2040_ep_s
 
   bool txnullpkt;                       /* Null packet needed at end of transfer */
 
-
-  uint8_t *curr_buf;              /* Current transfer buffer address */
-  uint16_t curr_len;              /*                  length */
-  uint16_t curr_total_len;        /*                  total length */
-  uint16_t curr_xfrd_len;         /*                  transferred length */
-
   uint8_t *data_buf;              /* DPSRAM buffer address */
   uint32_t ep_ctrl;               /* DPSRAM EP control register address */
   uint32_t buf_ctrl;              /* DPSRAM buffer control register address */
@@ -229,7 +223,6 @@ struct rp2040_ep_s
 
   int     next_pid;               /* Next PID 0:DATA0, 1:DATA1 */
   bool    stalled;                /* The EP is stalled */
-  bool    pending_stall;          /* Pending stall request */
 
   bool    halted;
   bool    txwait;
@@ -1620,7 +1613,6 @@ static int rp2040_epdisable(FAR struct usbdev_ep_s *ep)
 
   privep->disable = 1;
   privep->ep.maxpacket = 64;
-  privep->curr_buf = NULL;
   privep->stalled = false;
   privep->next_pid = 0;
   putreg32(0, privep->buf_ctrl);
@@ -1852,41 +1844,6 @@ static int rp2040_epcancel(FAR struct usbdev_ep_s *ep,
 }
 
 /****************************************************************************
- * Name: rp2040_epstall_exec
- *
- * Description:
- *   Stall endpoint immediately
- *
- ****************************************************************************/
-
-static int rp2040_epstall_exec(FAR struct usbdev_ep_s *ep)
-{
-  FAR struct rp2040_ep_s *privep = (FAR struct rp2040_ep_s *)ep;
-  irqstate_t flags;
-
-  usbtrace(TRACE_EPSTALL, privep->epphy + 0xff00);
-
-  flags = spin_lock_irqsave(NULL);
-
-  if (privep->epphy == 0)
-    {
-      setbits_reg32(privep->in ?
-                     RP2040_USBCTRL_REGS_EP_STALL_ARM_EP0_IN :
-                     RP2040_USBCTRL_REGS_EP_STALL_ARM_EP0_OUT,
-                    RP2040_USBCTRL_REGS_EP_STALL_ARM);
-    }
-
-  rp2040_update_buffer_control(privep,
-                    0,
-                    RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_STALL);
-
-  privep->pending_stall = false;
-
-  spin_unlock_irqrestore(NULL, flags);
-  return OK;
-}
-
-/****************************************************************************
  * Name: rp2040_epstall
  *
  * Description:
@@ -1922,17 +1879,17 @@ static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
     {
       usbtrace(TRACE_EPSTALL, privep->epphy);
       privep->stalled = true;
-      if (privep->curr_buf == NULL)
+      if (privep->epphy == 0)
         {
-          rp2040_epstall_exec(ep);
-        }
-      else
-        {
-          /* Transfer ongoing : postpone the stall until the end */
-
-          privep->pending_stall = true;
+          setbits_reg32(privep->in ?
+                         RP2040_USBCTRL_REGS_EP_STALL_ARM_EP0_IN :
+                         RP2040_USBCTRL_REGS_EP_STALL_ARM_EP0_OUT,
+                        RP2040_USBCTRL_REGS_EP_STALL_ARM);
         }
 
+      rp2040_update_buffer_control(privep,
+                        0,
+                        RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_STALL);
       priv->zlp_stat = RP2040_ZLP_NONE;
     }
 
@@ -1996,7 +1953,6 @@ static FAR struct usbdev_ep_s *rp2040_allocep(FAR struct usbdev_s *dev,
 
   privep->next_pid = 0;
   privep->stalled = false;
-  privep->curr_buf = NULL;
   privep->buf_ctrl = RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(epindex);
 
   if (epphy == 0)
