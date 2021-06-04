@@ -51,11 +51,14 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#include <queue.h>
+/* Configuration ************************************************************/
 
-#ifndef container_of
-#  define container_of(ptr, type, member) \
-    ((type *)((void *)(ptr) - offsetof(type, member)))
+#ifndef CONFIG_USBDEV_EP0_MAXSIZE
+#  define CONFIG_USBDEV_EP0_MAXSIZE 64
+#endif
+
+#ifndef CONFIG_USBDEV_SETUP_MAXDATASIZE
+#  define CONFIG_USBDEV_SETUP_MAXDATASIZE (CONFIG_USBDEV_EP0_MAXSIZE * 4)
 #endif
 
 /* Debug ********************************************************************/
@@ -71,8 +74,13 @@
 #define RP2040_TRACEERR_EWRITE            0x0007
 #define RP2040_TRACEERR_NULLREQUEST       0x0008
 #define RP2040_TRACEERR_REQABORTED        0x0009
-#define RP2040_TRACEERR_STALLEDISPATCH    0x000a
-#define RP2040_TRACEERR_STALLEDREQUEST    0x000b
+#define RP2040_TRACEERR_STALLEDCLRFEATURE 0x000a
+#define RP2040_TRACEERR_STALLEDISPATCH    0x000b
+#define RP2040_TRACEERR_STALLEDGETST      0x000c
+#define RP2040_TRACEERR_STALLEDGETSTEP    0x000d
+#define RP2040_TRACEERR_STALLEDGETSTRECIP 0x000e
+#define RP2040_TRACEERR_STALLEDREQUEST    0x000f
+#define RP2040_TRACEERR_STALLEDSETFEATURE 0x0010
 
 /* Trace interrupt codes */
 
@@ -84,13 +92,15 @@
 #define RP2040_TRACEINTID_SYNCHFRAME      6
 #define RP2040_TRACEINTID_STALLEDREQUEST  7
 #define RP2040_TRACEINTID_GETSETDESC      8
-#define RP2040_TRACEINTID_HANDLEZLP       9
-#define RP2040_TRACEINTID_USBINTERRUPT   10
-#define RP2040_TRACEINTID_INTR_BUSRESET  11
-#define RP2040_TRACEINTID_INTR_BUFFSTAT  12
-#define RP2040_TRACEINTID_INTR_SETUP     13
-#define RP2040_TRACEINTID_TESTMODE       14
-#define RP2040_TRACEINTID_DISPATCH       15
+#define RP2040_TRACEINTID_GETIFDEV        9
+#define RP2040_TRACEINTID_GETENDPOINT    10
+#define RP2040_TRACEINTID_HANDLEZLP      11
+#define RP2040_TRACEINTID_USBINTERRUPT   12
+#define RP2040_TRACEINTID_INTR_BUSRESET  13
+#define RP2040_TRACEINTID_INTR_BUFFSTAT  14
+#define RP2040_TRACEINTID_INTR_SETUP     15
+#define RP2040_TRACEINTID_TESTMODE       16
+#define RP2040_TRACEINTID_DISPATCH       17
 
 #ifdef CONFIG_USBDEV_TRACE_STRINGS
 const struct trace_msg_t g_usb_trace_strings_deverror[] =
@@ -104,8 +114,13 @@ const struct trace_msg_t g_usb_trace_strings_deverror[] =
   TRACE_STR(RP2040_TRACEERR_EWRITE),
   TRACE_STR(RP2040_TRACEERR_NULLREQUEST),
   TRACE_STR(RP2040_TRACEERR_REQABORTED),
+  TRACE_STR(RP2040_TRACEERR_STALLEDCLRFEATURE),
   TRACE_STR(RP2040_TRACEERR_STALLEDISPATCH),
+  TRACE_STR(RP2040_TRACEERR_STALLEDGETST),
+  TRACE_STR(RP2040_TRACEERR_STALLEDGETSTEP),
+  TRACE_STR(RP2040_TRACEERR_STALLEDGETSTRECIP),
   TRACE_STR(RP2040_TRACEERR_STALLEDREQUEST),
+  TRACE_STR(RP2040_TRACEERR_STALLEDSETFEATURE),
   TRACE_STR_END
 };
 
@@ -207,6 +222,8 @@ struct rp2040_ep_s
   int     next_pid;               /* Next PID 0:DATA0, 1:DATA1 */
   bool    stalled;                /* The EP is stalled */
   bool    pending_stall;          /* Pending stall request */
+
+  bool    halted;
 };
 
 /* This structure encapsulates the overall driver state */
@@ -234,15 +251,33 @@ struct rp2040_usbdev_s
 
   uint16_t used;              /* used epphy */
 
-  struct usb_ctrlreq_s ctrl;  /* Last EP0 request */
-  uint8_t setup_out[64];
-  int     setup_out_len;
-
 
 
   bool stalled;
   bool selfpowered;           /* 1: Device is self powered */
 
+
+
+
+  /* EP0 SETUP data buffering.
+   *
+   * ctrl
+   *   The 8-byte SETUP request is received on the EP0 OUT endpoint and is
+   *   saved.
+   *
+   * ep0data
+   *   For OUT SETUP requests, the SETUP data phase must also complete before
+   *   the SETUP command can be processed.
+   *
+   * ep0datlen
+   *   Length of OUT DATA received in ep0data[]
+   */
+
+  struct usb_ctrlreq_s ctrl;  /* Last EP0 request */
+
+  uint8_t ep0data[CONFIG_USBDEV_SETUP_MAXDATASIZE];
+  uint16_t ep0datlen;
+  uint16_t ep0dreqlen;
 
   /* The endpoint list */
 
@@ -452,9 +487,9 @@ static void rp2040_update_buffer_control(FAR struct rp2040_ep_s *privep,
  *
  ****************************************************************************/
 
-static int rp2040_epwrite(uint8_t epphy, uint8_t *buf, uint16_t nbytes)
+static int rp2040_epwrite(FAR struct rp2040_ep_s *privep, FAR uint8_t *buf,
+                          uint16_t nbytes)
 {
-  FAR struct rp2040_ep_s *privep = &g_usbdev.eplist[epphy * 2];
   uint16_t bytesleft;
   uint32_t val;
   irqstate_t flags;
@@ -465,7 +500,7 @@ static int rp2040_epwrite(uint8_t epphy, uint8_t *buf, uint16_t nbytes)
       bytesleft = nbytes;
     }
 
-  usbtrace(TRACE_WRITE(epphy), bytesleft); /* TBD */
+  usbtrace(TRACE_WRITE(privep->epphy), bytesleft); /* TBD */
 
   /* Copy the transmit data into DPSRAM */
 
@@ -652,7 +687,7 @@ static int rp2040_wrrequest(struct rp2040_ep_s *privep)
           /* Send the largest number of bytes that we can in this packet */
 
           buf           = privreq->req.buf + privreq->req.xfrd;
-          nbyteswritten = rp2040_epwrite(privep->epphy, buf, nbytes);
+          nbyteswritten = rp2040_epwrite(privep, buf, nbytes);
           if (nbyteswritten < 0 || nbyteswritten != nbytes)
             {
               usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_EWRITE), nbyteswritten);
@@ -840,22 +875,30 @@ rp2040_epfindbyaddr(struct rp2040_usbdev_s *priv, uint16_t eplog)
  *
  ****************************************************************************/
 
-static void rp2040_dispatchrequest(struct rp2040_usbdev_s *priv,
-                                   const struct usb_ctrlreq_s *ctrl)
+static void rp2040_dispatchrequest(struct rp2040_usbdev_s *priv)
 {
   int ret;
 
   usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_DISPATCH), 0);
   if (priv && priv->driver)
     {
-      ret = CLASS_SETUP(priv->driver, &priv->usbdev, ctrl, NULL, 0);
+      ret = CLASS_SETUP(priv->driver, &priv->usbdev, &priv->ctrl,
+                        priv->ep0data, priv->ep0datlen);
       if (ret < 0)
         {
           /* Stall on failure */
 
-          usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_STALLEDISPATCH), ctrl->req);
+          usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_STALLEDISPATCH),
+                   priv->ctrl.req);
           priv->stalled = 1;
         }
+
+      /* TBD */
+      if (!priv->stalled && USB_REQ_ISOUT(priv->ctrl.type))
+        {
+          priv->zlp_stat = RP2040_ZLP_NONE; /* already sent */
+        }
+
     }
 }
 
@@ -869,14 +912,22 @@ static void rp2040_dispatchrequest(struct rp2040_usbdev_s *priv,
 
 static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
 {
+  FAR struct rp2040_ep_s *ep0      = &priv->eplist[0];
+  FAR struct rp2040_req_s *privreq = rp2040_rqpeek(ep0);
+  FAR struct rp2040_ep_s *privep;
   uint16_t index;
   uint16_t value;
   uint16_t len;
-  int handled = 0;
-  char resp[2];
   int epindex;
 
   usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_INTR_SETUP), 0);
+
+  /* Assume NOT stalled */
+
+  ep0->stalled  = 0;
+  priv->stalled = 0;
+
+
 
   index = GETUINT16(priv->ctrl.index);
   value = GETUINT16(priv->ctrl.value);
@@ -885,8 +936,19 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
   uinfo("type=%02x req=%02x value=%04x index=%04x len=%04x\n",
         priv->ctrl.type, priv->ctrl.req, value, index, len);
 
-  if ((priv->ctrl.type & USB_REQ_TYPE_MASK) == USB_REQ_TYPE_STANDARD)
+
+  /* Dispatch any non-standard requests */
+
+  if ((priv->ctrl.type & USB_REQ_TYPE_MASK) != USB_REQ_TYPE_STANDARD)
     {
+      rp2040_dispatchrequest(priv);
+    }
+  else
+    {
+      /* Handle standard request.  Pick off the things of interest to the
+       * USB device controller driver; pass what is left to the class driver
+       */
+
       switch (priv->ctrl.req)
         {
           case USB_REQ_GETSTATUS:
@@ -903,35 +965,54 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
               usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_GETSTATUS),
                        priv->ctrl.req);
 
-              resp[1] = 0;
-              switch (priv->ctrl.type & USB_REQ_RECIPIENT_MASK)
+              if (len != 2 || (priv->ctrl.type & USB_REQ_DIR_IN) == 0 ||
+                  value != 0)
                 {
-                  case USB_REQ_RECIPIENT_ENDPOINT:
-                    epindex = RP2040_EPINDEX(priv->ctrl.index[0]);
-                    if (epindex < RP2040_NENDPOINTS * 2 &&
-                        priv->eplist[epindex].stalled == 0)
-                      {
-                        resp[0] = 0; /* bit0: halt */
-                      }
-                    else
-                      {
-                        resp[0] = 1; /* bit0: halt */
-                      }
-                    break;
-
-                  case USB_REQ_RECIPIENT_DEVICE:
-                    resp[0] = 0; /* bit0: selfpowerd, bit1: remote wakeup */
-                    break;
-
-                  case USB_REQ_RECIPIENT_INTERFACE:
-                    resp[0] = 0; /* reserved */
-                    break;
+                  usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_STALLEDGETST),
+                           priv->ctrl.req);
+                  priv->stalled = 1;
                 }
+              else
+                {
+                  switch (priv->ctrl.type & USB_REQ_RECIPIENT_MASK)
+                    {
+                      case USB_REQ_RECIPIENT_ENDPOINT:
+                        {
+                          usbtrace(TRACE_INTDECODE(
+                                   RP2040_TRACEINTID_GETENDPOINT),
+                                   0);
+                          privep = rp2040_epfindbyaddr(priv, index);
+                          if (!privep)
+                            {
+                              usbtrace(
+                                TRACE_DEVERROR(
+                                RP2040_TRACEERR_STALLEDGETSTEP),
+                                priv->ctrl.type);
+                              priv->stalled = 1;
+                            }
+                        }
+                        break;
 
-              rp2040_start_transfer(&priv->eplist[0], &resp, 2);
-              handled = 1;
-              break;
+                      case USB_REQ_RECIPIENT_DEVICE:
+                      case USB_REQ_RECIPIENT_INTERFACE:
+                        usbtrace(TRACE_INTDECODE(
+                                 RP2040_TRACEINTID_GETIFDEV),
+                                 0);
+                        break;
+
+                      default:
+                        {
+                          usbtrace(TRACE_DEVERROR(
+                                   RP2040_TRACEERR_STALLEDGETSTRECIP),
+                                   priv->ctrl.type);
+                          priv->stalled = 1;
+                        }
+                        break;
+                    }
+                }
+//              rp2040_start_transfer(&priv->eplist[0], &resp, 2);
             }
+            break;
 
           case USB_REQ_CLEARFEATURE:
             {
@@ -945,24 +1026,28 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
 
               usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_CLEARFEATURE),
                        (uint16_t)priv->ctrl.req);
-
-              if (priv->ctrl.value[0] == USB_FEATURE_ENDPOINTHALT)
+              if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) !=
+                  USB_REQ_RECIPIENT_ENDPOINT)
                 {
-                  epindex = RP2040_EPINDEX(priv->ctrl.index[0]);
-                  if (epindex < RP2040_NENDPOINTS * 2)
-                    {
-#ifdef CONFIG_USBMSC_IGNORE_CLEAR_STALL
-                      if (!priv->eplist[epindex].ignore_clear_stall)
-#endif
-                        {
-                          rp2040_epstall(&priv->eplist[epindex].ep, true);
-                        }
-
-                      handled = 1;
-                    }
+                  rp2040_dispatchrequest(priv);
                 }
-              break;
+              else if ( // priv->paddrset != 0 &&
+                       value == USB_FEATURE_ENDPOINTHALT &&
+                       len == 0 &&
+                       (privep = rp2040_epfindbyaddr(priv, index)) != NULL)
+                {
+                  privep->halted = 0;
+                  rp2040_epstall(&privep->ep, true);
+                  rp2040_epwrite(ep0, NULL, 0);
+                }
+              else
+                {
+                  usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_STALLEDCLRFEATURE),
+                           priv->ctrl.type);
+                  priv->stalled = 1;
+                }
             }
+            break;
 
           case USB_REQ_SETFEATURE:
             {
@@ -977,23 +1062,31 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
 
               usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_SETFEATURE),
                        priv->ctrl.req);
-
-              if (priv->ctrl.value[0] == USB_FEATURE_TESTMODE)
+              if (priv->ctrl.type == USB_REQ_RECIPIENT_DEVICE &&
+                  value == USB_FEATURE_TESTMODE)
                 {
                   usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_TESTMODE),
                            index);
                 }
-              else if (priv->ctrl.value[0] == USB_FEATURE_ENDPOINTHALT)
+              else if (priv->ctrl.type != USB_REQ_RECIPIENT_ENDPOINT)
                 {
-                  epindex = RP2040_EPINDEX(priv->ctrl.index[0]);
-                  if (epindex < RP2040_NENDPOINTS * 2)
-                    {
-                      rp2040_epstall(&priv->eplist[epindex].ep, false);
-                      handled = 1;
-                    }
-                  }
-              break;
+                  rp2040_dispatchrequest(priv);
+                }
+              else if (value == USB_FEATURE_ENDPOINTHALT && len == 0 &&
+                       (privep = rp2040_epfindbyaddr(priv, index)) != NULL)
+                {
+                  privep->halted = 0;
+                  rp2040_epstall(&privep->ep, true);
+                  rp2040_epwrite(ep0, NULL, 0);
+                }
+              else
+                {
+                  usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_STALLEDSETFEATURE),
+                           priv->ctrl.type);
+                  priv->stalled = 1;
+                }
             }
+            break;
 
           case USB_REQ_SETADDRESS:
             {
@@ -1004,11 +1097,9 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
                */
 
               usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_SETADDRESS), value);
-
               priv->dev_addr = value & 0xff;
-              handled = 1;
-              break;
             }
+            break;
 
           case USB_REQ_GETDESCRIPTOR:
             /* type:  device-to-host; recipient = device
@@ -1027,8 +1118,9 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
             {
               usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_GETSETDESC),
                        priv->ctrl.req);
-              break;
+              rp2040_dispatchrequest(priv);
             }
+            break;
 
           case USB_REQ_GETCONFIGURATION:
             /* type:  device-to-host; recipient = device
@@ -1061,8 +1153,9 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
             {
               usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_GETSETIFCONFIG),
                        priv->ctrl.req);
-              break;
+              rp2040_dispatchrequest(priv);
             }
+            break;
 
           case USB_REQ_SYNCHFRAME:
               /* type:  device-to-host; recipient = endpoint
@@ -1080,31 +1173,22 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
             {
               usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_STALLEDREQUEST),
                        priv->ctrl.req);
+              priv->stalled = 1;
             }
             break;
         }
     }
 
-  if (!handled)
-    {
-      int res;
+  /* Check if the setup processing resulted in a STALL */
 
-      res = CLASS_SETUP(priv->driver, &priv->usbdev, &priv->ctrl,
-                        priv->setup_out, priv->setup_out_len);
-      if (res < 0)
-        {
-          usbtrace(TRACE_DEVERROR(RP2040_TRACEERR_STALLEDREQUEST),
-                   priv->ctrl.req);
-          rp2040_epstall(&priv->eplist[0].ep, false);
-          return;
-        }
-      else if (res == 0 && USB_REQ_ISOUT(priv->ctrl.type))
-        {
-          priv->zlp_stat = RP2040_ZLP_NONE; /* already sent */
-        }
+  if (priv->stalled)
+    {
+      rp2040_epstall(&priv->eplist[0].ep, false);
+      rp2040_epstall(&priv->eplist[1].ep, false);
     }
 
-  if (priv->zlp_stat != RP2040_ZLP_NONE)
+  /* TBD */
+  else if (priv->zlp_stat != RP2040_ZLP_NONE)
     {
       if (priv->eplist[1].curr_buf == NULL)
         {
@@ -1147,9 +1231,9 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
     {
       /* Receive the subsequent OUT data for the setup */
 
-      priv->setup_out_len = len;
+      priv->ep0datlen = len;
       rp2040_start_transfer(&priv->eplist[RP2040_EPINDEX(0x00)],
-                            priv->setup_out, len);
+                            priv->ep0data, len);
     }
   else
     {
@@ -1187,10 +1271,10 @@ static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
 
   privep = &priv->eplist[epindex];
 
-  if (priv->setup_out_len > 0 && epindex == 1)
+  if (priv->ep0datlen > 0 && epindex == 1)
     {
-      memcpy(priv->setup_out, privep->data_buf, priv->setup_out_len);
-      priv->setup_out_len = 0;
+      memcpy(priv->ep0data, privep->data_buf, priv->ep0datlen);
+      priv->ep0datlen = 0;
       priv->zlp_stat = RP2040_ZLP_NONE;
       rp2040_ep0setup(priv);
       return;
