@@ -931,15 +931,8 @@ static void rp2040_handle_zlp(FAR struct rp2040_usbdev_s *priv)
   switch (priv->zlp_stat)
     {
       case RP2040_ZLP_NONE:
-        return;
-
       case RP2040_ZLP_IN_REPLY:
-
-        /* Reply to control IN  : receive ZLP from EP0 (0x00) */
-
         return;
-//        privep = &priv->eplist[RP2040_EPINDEX(0x00)];
-//        break;
 
       case RP2040_ZLP_OUT_REPLY:
 
@@ -1444,12 +1437,8 @@ static void rp2040_usbintr_epdone1(FAR struct rp2040_usbdev_s *priv,
       return;
     }
 
-
-  if (len > 0)
-    {
-      memcpy(priv->ep0data + priv->ep0datlen, privep->data_buf, len);
-      priv->ep0datlen += len;
-    }
+  memcpy(priv->ep0data + priv->ep0datlen, privep->data_buf, len);
+  priv->ep0datlen += len;
 
   if (priv->ep0datlen == priv->ep0reqlen)
     {
@@ -1475,52 +1464,22 @@ static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
   struct rp2040_ep_s *privep;
   int len;
 
-  if (epindex == 0)
+  if (priv->dev_addr)
     {
-      if (priv->dev_addr)
-        {
-          uinfo("setaddr 0x%x\n", priv->dev_addr);
-          putreg32(priv->dev_addr, RP2040_USBCTRL_REGS_ADDR_ENDP);
-          priv->dev_addr = 0;
-          return;
-        }
+      uinfo("setaddr 0x%x\n", priv->dev_addr);
+      putreg32(priv->dev_addr, RP2040_USBCTRL_REGS_ADDR_ENDP);
+      priv->dev_addr = 0;
+      return;
     }
 
   privep = &priv->eplist[epindex];
 
-  if (priv->ep0datlen > 0 && epindex == 1)
-    {
-      memcpy(priv->ep0data, privep->data_buf, priv->ep0datlen);
-      priv->ep0datlen = 0;
-      priv->zlp_stat = RP2040_ZLP_NONE;
-      rp2040_ep0setup(priv);
-      return;
-    }
-
   len = getreg32(RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(epindex))
         & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
-  if (!privep->in && len > 0)
-    {
-      memcpy(privep->curr_buf, privep->data_buf, len);
-    }
 
   privep->curr_buf += len;
   privep->curr_total_len -= len;
   privep->curr_xfrd_len += len;
-
-  if (privep->in)
-    {
-//      DEBUGASSERT(len == privep->curr_len);
-    }
-  else
-    {
-      if (len < privep->curr_len)
-        {
-          /* short packet */
-
-          privep->curr_total_len = 0;
-        }
-    }
 
   if (privep->curr_total_len == 0)
     {
@@ -1600,8 +1559,7 @@ static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
                          & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
 
           uinfo("\x1b[1m" "EP:%02x %d" "\x1b[0m" "\n",
-                i, len);
-//                RP2040_EPLOG(i), len);
+                RP2040_EPLOG(i), len);
 
           if (i >= 2)
             {
