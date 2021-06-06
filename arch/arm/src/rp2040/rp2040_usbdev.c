@@ -1377,6 +1377,11 @@ static void rp2040_usbintr_epdone2(FAR struct rp2040_usbdev_s *priv,
       else
         {
           privep->txwait = 1;
+
+          if (privep->pending_stall)
+            {
+              rp2040_epstall_exec(&privep->ep);
+            }
         }
     }
   else
@@ -1966,7 +1971,7 @@ static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
     {
       usbtrace(TRACE_EPSTALL, privep->epphy);
       privep->stalled = true;
-      if (true)
+      if (rp2040_rqempty(privep))
         {
           rp2040_epstall_exec(ep);
         }
