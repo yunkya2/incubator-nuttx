@@ -214,11 +214,6 @@ struct rp2040_ep_s
   bool txnullpkt;                       /* Null packet needed at end of transfer */
 
 
-  uint8_t *curr_buf;              /* Current transfer buffer address */
-  uint16_t curr_len;              /*                  length */
-  uint16_t curr_total_len;        /*                  total length */
-  uint16_t curr_xfrd_len;         /*                  transferred length */
-
   uint8_t *data_buf;              /* DPSRAM buffer address */
   uint32_t ep_ctrl;               /* DPSRAM EP control register address */
   uint32_t buf_ctrl;              /* DPSRAM buffer control register address */
@@ -897,24 +892,6 @@ static void rp2040_start_transfer(FAR struct rp2040_ep_s *privep,
 }
 
 /****************************************************************************
- * Name: rp2040_start_req_transfer
- *
- * Description:
- *   Start the endpoint transfer request
- *
- ****************************************************************************/
-
-static void rp2040_start_req_transfer(FAR struct rp2040_ep_s *privep,
-                                      FAR struct usbdev_req_s *req)
-{
-  privep->curr_buf = req->buf;
-  privep->curr_total_len = req->len;
-  privep->curr_len = req->len > 64 ? 64 : req->len;
-  privep->curr_xfrd_len = 0;
-  rp2040_start_transfer(privep, req->buf, privep->curr_len);
-}
-
-/****************************************************************************
  * Name: rp2040_handle_zlp
  *
  * Description:
@@ -1317,10 +1294,7 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
   /* TBD */
   else if (priv->zlp_stat != RP2040_ZLP_NONE)
     {
-      if (priv->eplist[1].curr_buf == NULL)
-        {
-          rp2040_handle_zlp(priv);
-        }
+      rp2040_handle_zlp(priv);
     }
 }
 
@@ -1691,7 +1665,6 @@ static int rp2040_epdisable(FAR struct usbdev_ep_s *ep)
 
   privep->disable = 1;
   privep->ep.maxpacket = 64;
-  privep->curr_buf = NULL;
   privep->stalled = false;
   privep->next_pid = 0;
   putreg32(0, privep->buf_ctrl);
@@ -1993,7 +1966,7 @@ static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
     {
       usbtrace(TRACE_EPSTALL, privep->epphy);
       privep->stalled = true;
-      if (privep->curr_buf == NULL)
+      if (true)
         {
           rp2040_epstall_exec(ep);
         }
@@ -2067,7 +2040,6 @@ static FAR struct usbdev_ep_s *rp2040_allocep(FAR struct usbdev_s *dev,
 
   privep->next_pid = 0;
   privep->stalled = false;
-  privep->curr_buf = NULL;
   privep->buf_ctrl = RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(epindex);
 
   if (epphy == 0)
