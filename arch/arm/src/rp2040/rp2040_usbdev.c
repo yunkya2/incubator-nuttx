@@ -1926,6 +1926,7 @@ static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
       rp2040_update_buffer_control(privep,
                         ~RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_STALL,
                         0);
+      privep->next_pid = 0;
     }
   else
     {
