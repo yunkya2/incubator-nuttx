@@ -563,6 +563,46 @@ static int rp2040_epwrite(FAR struct rp2040_ep_s *privep, FAR uint8_t *buf,
 }
 
 /****************************************************************************
+ * Name: rp2040_epread
+ *
+ * Description:
+ *   Endpoint read (OUT)
+ *
+ ****************************************************************************/
+
+static int rp2040_epread(FAR struct rp2040_ep_s *privep, uint16_t nbytes)
+{
+  uint32_t val;
+  irqstate_t flags;
+
+  usbtrace(TRACE_READ(privep->epphy), nbytes); /* TBD */
+
+  val = nbytes |
+        RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_AVAIL |
+        (privep->next_pid ?
+         RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_DATA1_PID : 0);
+
+    /*  RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LAST */
+
+  privep->next_pid = 1 - privep->next_pid;    /* Invert DATA0 <-> DATA1 */
+
+  /* Send NULL packet request */
+
+  /* Start the transfer */
+
+  flags = spin_lock_irqsave(NULL);
+  rp2040_update_buffer_control(privep, 0, val);
+  spin_unlock_irqrestore(NULL, flags);
+
+  return OK;
+}
+
+
+
+
+
+
+/****************************************************************************
  * Name: rp2040_abortrequest
  *
  * Description:
@@ -816,80 +856,9 @@ static int rp2040_rdrequest(FAR struct rp2040_ep_s *privep)
 
   usbtrace(TRACE_READ(privep->epphy), privreq->req.len);
 
-  /* Ready to receive next packet */
-
-  val = privreq->req.len |
-        RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_AVAIL |
-        (privep->next_pid ?
-         RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_DATA1_PID : 0);
-
-    /*  RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LAST */
-
-  privep->next_pid = 1 - privep->next_pid;    /* Invert DATA0 <-> DATA1 */
-
-  /* Start the transfer */
-
-  flags = spin_lock_irqsave(NULL);
-  rp2040_update_buffer_control(privep, 0, val);
-  spin_unlock_irqrestore(NULL, flags);
-
-  return OK;
+  return rp2040_epread(privep, privreq->req.len);
 }
 
-
-
-
-
-
-
-/****************************************************************************
- * Name: rp2040_start_transfer
- *
- * Description:
- *   Start endpoint send/receive transfer
- *
- ****************************************************************************/
-
-static void rp2040_start_transfer(FAR struct rp2040_ep_s *privep,
-                                  FAR void *buf, size_t len)
-{
-  uint32_t val;
-  irqstate_t flags;
-
-  if (privep->in)
-    {
-      usbtrace(TRACE_WRITE(privep->epphy), len);
-    }
-  else
-    {
-      usbtrace(TRACE_READ(privep->epphy), len);
-    }
-
-  flags = spin_lock_irqsave(NULL);
-
-  val = len | RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_AVAIL;
-
-  if (privep->in)
-    {
-      /* Copy the transmit data into DPSRAM */
-
-      memcpy(privep->data_buf, buf, len);
-      val |= RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_FULL;
-    }
-
-  if (privep->next_pid)
-    {
-      val |= RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_DATA1_PID;
-    }
-
-  privep->next_pid = 1 - privep->next_pid;    /* Invert DATA0 <-> DATA1 */
-
-  /* Start the transfer */
-
-  rp2040_update_buffer_control(privep, 0, val);
-
-  spin_unlock_irqrestore(NULL, flags);
-}
 
 /****************************************************************************
  * Name: rp2040_handle_zlp
@@ -903,34 +872,33 @@ static void rp2040_handle_zlp(FAR struct rp2040_usbdev_s *priv)
 {
   FAR struct rp2040_ep_s *privep;
 
-  switch (priv->zlp_stat)
+  if (priv->zlp_stat == RP2040_ZLP_NONE)
     {
-      case RP2040_ZLP_NONE:
-        return;
-
-      case RP2040_ZLP_IN_REPLY:
-
-        /* Reply to control IN  : receive ZLP from EP0 (0x00) */
-
-        privep = &priv->eplist[RP2040_EPINDEX(0x00)];
-        break;
-
-      case RP2040_ZLP_OUT_REPLY:
-
-        /* Reply to control OUT : send ZLP to EP0 (0x80) */
-
-        privep = &priv->eplist[RP2040_EPINDEX(0x80)];
-        break;
-
-      default:
-        DEBUGASSERT(0);
+      return;
     }
 
   usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_HANDLEZLP), privep->ep.eplog);
 
   privep->next_pid = 1;   /* ZLP is always sent by DATA1 packet */
 
-  rp2040_start_transfer(privep, NULL, 0);
+  if (priv->zlp_stat == RP2040_ZLP_IN_REPLY)
+    {
+      /* Reply to control IN  : receive ZLP from EP0 (0x00) */
+
+      privep = &priv->eplist[RP2040_EPINDEX(0x00)];
+      rp2040_epread(privep, 0);
+    }
+  else if (priv->zlp_stat == RP2040_ZLP_OUT_REPLY)
+    {
+      /* Reply to control OUT : send ZLP to EP0 (0x80) */
+
+      privep = &priv->eplist[RP2040_EPINDEX(0x80)];
+      rp2040_epwrite(privep, NULL, 0);
+    }
+  else
+    {
+      DEBUGASSERT(0);
+    }
 
   priv->zlp_stat = RP2040_ZLP_NONE;
 }
@@ -1333,8 +1301,7 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
       /* Receive the subsequent OUT data for the setup */
 
       priv->ep0reqlen = len;
-      rp2040_start_transfer(&priv->eplist[RP2040_EPINDEX(0x00)],
-                            priv->ep0data, len);
+      rp2040_epread(&priv->eplist[RP2040_EPINDEX(0x00)], len);
     }
   else
     {
@@ -1423,7 +1390,7 @@ static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
     }
   else
     {
-      rp2040_start_transfer(privep, NULL, RP2040_EP0MAXPACKET);
+      rp2040_epread(privep, RP2040_EP0MAXPACKET);
     }
 }
 
