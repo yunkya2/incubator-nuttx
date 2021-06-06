@@ -161,13 +161,20 @@ const struct trace_msg_t g_usb_trace_strings_intdecode[] =
 #define RP2040_BULKMAXPACKET    64        /* Bulk endpoint max packet */
 #define RP2040_INTRMAXPACKET    64        /* Interrupt endpoint max packet */
 #define RP2040_ISOMAXPACKET     1023      /* Isochronous max packet size */
-#define RP2040_NENDPOINTS       16
 
-/* Conversion between USB logical endpoint and RP2040 DPSRAM index */
+#define RP2040_NENDPOINTS       (16 + 1)  /* EP0 IN, EP0 OUT, EP1..EP15 */
 
-#define RP2040_EPINDEX(eplog)   (USB_EPNO(eplog) * 2 + USB_ISEPOUT(eplog))
-#define RP2040_EPLOG(epindex)   (((epindex) / 2) + \
-                                 ((epindex) & 1 ? USB_DIR_OUT : USB_DIR_IN))
+/* Convert from USB logical endpoint to eplist index */
+
+#define RP2040_EPINDEX(eplog)   (USB_EPNO(eplog) == 0 ? \
+                                 (USB_ISEPIN(eplog) ? 0 : 1) : \
+                                 (USB_EPNO(eplog) + 1))
+
+/* Convert from USB logical endpoint to RP2040 DPSRAM control index */
+
+#define RP2040_DPINDEX(eplog)   (USB_EPNO(eplog) * 2 + USB_ISEPOUT(eplog))
+
+#define RP2040_DPTOEP(index)    ((index) < 2 ? (index) : (index) / 2 + 1)
 
 /* Request queue operations *************************************************/
 
@@ -285,7 +292,7 @@ struct rp2040_usbdev_s
 
   /* The endpoint list */
 
-  struct rp2040_ep_s eplist[RP2040_NENDPOINTS * 2];
+  struct rp2040_ep_s eplist[RP2040_NENDPOINTS];
 };
 
 /****************************************************************************
@@ -326,7 +333,7 @@ static int rp2040_epstall_exec(FAR struct usbdev_ep_s *ep);
 
 static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv);
 static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
-                                  int epindex);
+                                  FAR struct rp2040_ep_s *privep);
 static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv);
 static void rp2040_usbintr_busreset(FAR struct rp2040_usbdev_s *priv);
 static int rp2040_usbinterrupt(int irq, void *context, FAR void *arg);
@@ -1320,19 +1327,8 @@ static void rp2040_usbintr_setup(FAR struct rp2040_usbdev_s *priv)
  *
  ****************************************************************************/
 
-static void rp2040_usbintr_epdone2(FAR struct rp2040_usbdev_s *priv,
-                                  int epindex)
+static void rp2040_usbintr_epdone2(FAR struct rp2040_ep_s *privep)
 {
-  struct rp2040_req_s *privreq;
-  struct rp2040_ep_s *privep;
-  int len;
-
-
-  privep = &priv->eplist[epindex];
-
-  len = getreg32(RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(epindex))
-        & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
-
   if (privep->in)
     {
       if (!rp2040_rqempty(privep))
@@ -1359,15 +1355,12 @@ static void rp2040_usbintr_epdone2(FAR struct rp2040_usbdev_s *priv,
 
 
 static void rp2040_usbintr_epdone(FAR struct rp2040_usbdev_s *priv,
-                                  int epindex)
+                                  FAR struct rp2040_ep_s *privep)
 {
   struct rp2040_req_s *privreq;
-  struct rp2040_ep_s *privep;
   int len;
 
-  privep = &priv->eplist[epindex];
-
-  len = getreg32(RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(epindex))
+  len = getreg32(privep->buf_ctrl)
         & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
 
   uinfo("done %d\n", len);
@@ -1407,6 +1400,7 @@ static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
   uint32_t stat = getreg32(RP2040_USBCTRL_REGS_BUFF_STATUS);
   uint32_t bit;
   int i;
+  FAR struct rp2040_ep_s *privep;
 
   if (stat == 0)
     {
@@ -1416,23 +1410,25 @@ static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
   usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_INTR_BUFFSTAT), stat & 0xffff);
 
   bit = 1;
-  for (i = 0; i < RP2040_NENDPOINTS * 2 && stat != 0; i++)
+  for (i = 0; i < 32 && stat != 0; i++)
     {
       if (stat & bit)
         {
           clrbits_reg32(bit, RP2040_USBCTRL_REGS_BUFF_STATUS);
 
+          privep = &priv->eplist[RP2040_DPTOEP(i)];
+
           int len;
 
-          len = getreg32(RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(i))
+          len = getreg32(privep->buf_ctrl)
                          & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
 
           uinfo("\x1b[1m" "EP:%02x %d" "\x1b[0m" "\n",
-                RP2040_EPLOG(i), len);
+                privep->ep.eplog, len);
 
           if (i == 1)
             {
-              rp2040_usbintr_epdone(priv, i);
+              rp2040_usbintr_epdone(priv, privep);
             }
           else
             {
@@ -1443,7 +1439,7 @@ static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
                   priv->dev_addr = 0;
                 }
 
-              rp2040_usbintr_epdone2(priv, i);
+              rp2040_usbintr_epdone2(privep);
             }
 
           stat &= ~bit;
@@ -1474,7 +1470,7 @@ static void rp2040_usbintr_busreset(FAR struct rp2040_usbdev_s *priv)
   priv->zlp_stat = RP2040_ZLP_NONE;
   priv->next_offset = RP2040_USBCTRL_DPSRAM_DATA_BUF_OFFSET;
 
-  for (i = 0; i < RP2040_NENDPOINTS * 2; i++)
+  for (i = 0; i < RP2040_NENDPOINTS; i++)
     {
       FAR struct rp2040_ep_s *privep = &g_usbdev.eplist[i];
 
@@ -1562,14 +1558,12 @@ static int rp2040_epconfigure(FAR struct usbdev_ep_s *ep,
 {
   FAR struct rp2040_ep_s *privep = (FAR struct rp2040_ep_s *)ep;
   FAR struct rp2040_usbdev_s *priv = privep->dev;
-  int epindex;
   int eptype;
   uint16_t maxpacket;
 
   usbtrace(TRACE_EPCONFIGURE, privep->epphy);
   DEBUGASSERT(desc->addr == ep->eplog);
 
-  epindex = RP2040_EPINDEX(ep->eplog);
   eptype = desc->attr & USB_EP_ATTR_XFERTYPE_MASK;
   maxpacket = GETUINT16(desc->mxpacketsize);
 
@@ -1591,7 +1585,6 @@ static int rp2040_epconfigure(FAR struct usbdev_ep_s *ep,
                                      priv->next_offset);
       priv->next_offset =
                      (priv->next_offset + privep->ep.maxpacket + 63) & ~63;
-      privep->ep_ctrl = RP2040_USBCTRL_DPSRAM_EP_CTRL(epindex);
 
       /* Enable EP */
 
@@ -1988,6 +1981,7 @@ static FAR struct usbdev_ep_s *rp2040_allocep(FAR struct usbdev_s *dev,
   struct rp2040_ep_s *privep;
   int epphy;
   int epindex;
+  int dpindex;
 
   usbtrace(TRACE_DEVALLOCEP, (uint16_t)eplog);
 
@@ -1995,6 +1989,7 @@ static FAR struct usbdev_ep_s *rp2040_allocep(FAR struct usbdev_s *dev,
 
   epphy = USB_EPNO(eplog);
   epindex = RP2040_EPINDEX(eplog);
+  dpindex = RP2040_DPINDEX(eplog);
 
   if ((priv->used & 1 << epphy) && (epphy != 0))
     {
@@ -2012,12 +2007,16 @@ static FAR struct usbdev_ep_s *rp2040_allocep(FAR struct usbdev_s *dev,
 
   privep->next_pid = 0;
   privep->stalled = false;
-  privep->buf_ctrl = RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(epindex);
+  privep->buf_ctrl = RP2040_USBCTRL_DPSRAM_EP_BUF_CTRL(dpindex);
 
   if (epphy == 0)
     {
       privep->data_buf = (uint8_t *)RP2040_USBCTRL_DPSRAM_EP0_BUF_0;
       privep->ep_ctrl = 0;
+    }
+  else
+    {
+      privep->ep_ctrl = RP2040_USBCTRL_DPSRAM_EP_CTRL(dpindex);
     }
 
   return &privep->ep;
@@ -2172,15 +2171,15 @@ void arm_usbinitialize(void)
   g_usbdev.dev_addr = 0;
   g_usbdev.next_offset = RP2040_USBCTRL_DPSRAM_DATA_BUF_OFFSET;
 
-  for (i = 0; i < RP2040_NENDPOINTS * 2; i++)
+  for (i = 0; i < RP2040_NENDPOINTS; i++)
     {
       g_usbdev.eplist[i].ep.ops = &g_epops;
       g_usbdev.eplist[i].ep.maxpacket = 64;
       g_usbdev.eplist[i].dev = &g_usbdev;
-      g_usbdev.eplist[i].epphy = USB_EPNO(RP2040_EPLOG(i));
+      g_usbdev.eplist[i].epphy = 0;
       g_usbdev.eplist[i].head = NULL;
       g_usbdev.eplist[i].tail = NULL;
-      g_usbdev.eplist[i].ep.eplog = RP2040_EPLOG(i);
+      g_usbdev.eplist[i].ep.eplog = 0;
     }
 
   if (irq_attach(RP2040_USBCTRL_IRQ, rp2040_usbinterrupt, &g_usbdev) != 0)
