@@ -199,6 +199,8 @@ static void usbmsc_dumpdata(const char *msg, const uint8_t *buf, int buflen)
 }
 #endif
 
+int yyyy = 0;
+
 /****************************************************************************
  * Utility Support Functions
  ****************************************************************************/
@@ -1733,6 +1735,14 @@ static int usbmsc_idlestate(FAR struct usbmsc_dev_s *priv)
   privreq = (FAR struct usbmsc_req_s *)sq_remfirst(&priv->rdreqlist);
   leave_critical_section(flags);
 
+#if 0
+  if (yyyy)
+    {
+      yyyy = 0;
+      return OK;
+    }
+#endif
+
   /* Has anything been received? If not, just return an error.
    * This will cause us to remain in the IDLE state.  When a USB request is
    * received, the worker thread will be awakened in the USBMSC_STATE_IDLE
@@ -2633,6 +2643,7 @@ _err("STALL 3\n");
               usbtrace(TRACE_CLSERROR(USBMSC_TRACEERR_CMDFINSHSUBMIT),
                        (uint16_t)priv->residue);
 _err("STALL 4\n");
+yyyy = 1;
               EP_STALL(priv->epbulkout);
             }
 

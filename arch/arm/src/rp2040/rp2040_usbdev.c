@@ -547,6 +547,7 @@ static int rp2040_epwrite(FAR struct rp2040_ep_s *privep, FAR uint8_t *buf,
         RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_FULL |
         (privep->next_pid ?
          RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_DATA1_PID : 0);
+usbtrace(TRACE_DEVAPI_USER, privep->next_pid + 2 + (privep->epphy << 4));
 
     /*  RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LAST */
 
@@ -588,6 +589,7 @@ static int rp2040_epread(FAR struct rp2040_ep_s *privep, uint16_t nbytes)
         RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_AVAIL |
         (privep->next_pid ?
          RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_DATA1_PID : 0);
+usbtrace(TRACE_DEVAPI_USER, privep->next_pid + 0 + (privep->epphy << 4));
 
     /*  RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LAST */
 
@@ -1423,8 +1425,8 @@ static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
           len = getreg32(privep->buf_ctrl)
                          & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
 
-          uinfo("\x1b[1m" "EP:%02x %d" "\x1b[0m" "\n",
-                privep->ep.eplog, len);
+//          uinfo("\x1b[1m" "EP:%02x %d" "\x1b[0m" "\n",
+//                privep->ep.eplog, len);
 
           if (i == 1)
             {
@@ -1504,7 +1506,7 @@ static int rp2040_usbinterrupt(int irq, void *context, FAR void *arg)
 
   usbtrace(TRACE_INTENTRY(RP2040_TRACEINTID_USBINTERRUPT), 0);
 
-  uinfo("irq=%d context=%p stat=0x%lx\n", irq, context, stat);
+//  uinfo("irq=%d context=%p stat=0x%lx\n", irq, context, stat);
 
   if (stat & RP2040_USBCTRL_REGS_INTR_BUFF_STATUS)
     {
@@ -1924,15 +1926,21 @@ static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
         }
 
       rp2040_update_buffer_control(privep,
-                        ~RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_STALL,
+                        ~(RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_STALL),
+//                          RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_DATA1_PID),
                         0);
-      privep->next_pid = 0;
+
+//      if (rp2040_rqempty(privep))
+        privep->next_pid = 0;
+//      else
+//        privep->next_pid = 1;
+      priv->zlp_stat = RP2040_ZLP_NONE;
     }
   else
     {
       usbtrace(TRACE_EPSTALL, privep->epphy);
       privep->stalled = true;
-      if (rp2040_rqempty(privep))
+      if (rp2040_rqempty(privep) || !privep->in)
         {
           rp2040_epstall_exec(ep);
         }
