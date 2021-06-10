@@ -1905,6 +1905,28 @@ static int rp2040_epstall_exec(FAR struct usbdev_ep_s *ep)
  *
  ****************************************************************************/
 
+#include <nuttx/wdog.h>
+
+static struct wdog_s wdog;
+
+static void rp2040_restart(wdparm_t arg)
+{
+  FAR struct rp2040_usbdev_s *priv;
+  priv = (FAR struct rp2040_usbdev_s *)arg;
+
+  _err("\n\n***** %08x %08x *****\n\n",
+       *(volatile uint32_t *)0x50100094, *(volatile uint32_t *)0x50100098);
+
+       *(volatile uint32_t *)0x50100094 = 0x2440;
+}
+
+static void rp2040_delayedrestart(FAR struct rp2040_usbdev_s *priv,
+                                  FAR struct rp2040_ep_s *privep)
+{
+
+  wd_start(&wdog, CLOCKS_PER_SEC, rp2040_restart, (wdparm_t)priv);
+}
+
 static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
 {
   FAR struct rp2040_ep_s *privep = (FAR struct rp2040_ep_s *)ep;
@@ -1940,7 +1962,7 @@ static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
     {
       usbtrace(TRACE_EPSTALL, privep->epphy);
       privep->stalled = true;
-      if (rp2040_rqempty(privep) || !privep->in)
+      if (rp2040_rqempty(privep) || !privep->in || privep->epphy == 2)
         {
           rp2040_epstall_exec(ep);
         }
@@ -1952,6 +1974,9 @@ static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
         }
 
       priv->zlp_stat = RP2040_ZLP_NONE;
+
+      if (privep->epphy == 2)
+        rp2040_delayedrestart(priv, privep);
     }
 
   spin_unlock_irqrestore(NULL, flags);
