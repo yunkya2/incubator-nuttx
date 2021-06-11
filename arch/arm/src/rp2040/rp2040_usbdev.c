@@ -1928,7 +1928,7 @@ static void rp2040_restart(wdparm_t arg)
   privep = (FAR struct rp2040_ep_s *)arg;
   priv = privep->dev;
 
-//syslog(LOG_ERR, "restart****\n");
+syslog(LOG_ERR, "restart****\n");
 
   rp2040_update_buffer_control(privep,
                         ~(RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_STALL),
@@ -1951,6 +1951,7 @@ usbtrace(TRACE_DEVAPI_USER, 0x5678);
     {
       CLASS_DISCONNECT(priv->driver, &priv->usbdev);
     }
+  rp2040_pullup(&g_usbdev.usbdev, true);
 
 //  _err("\n\n***** %08x %08x *****\n\n",
 //       *(volatile uint32_t *)0x50100094, *(volatile uint32_t *)0x50100098);
@@ -2000,25 +2001,30 @@ static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
     }
   else
     {
-if (privep->epphy == 3 || privep->epphy == 2)
-      nxsig_usleep (100000);
+//if (privep->epphy == 3 || privep->epphy == 2)
+syslog(LOG_ERR, "epstall %d\n", privep->epphy);
+
       usbtrace(TRACE_EPSTALL, privep->epphy);
       privep->stalled = true;
-      if (rp2040_rqempty(privep) || !privep->in || privep->epphy == 2)
+      if (privep->epphy != 0 || rp2040_rqempty(privep))
         {
           rp2040_epstall_exec(ep);
+
+          if (!privep->in)
+            {
+              rp2040_delayedrestart(priv, privep);
+            }
         }
       else
         {
           /* Transfer ongoing : postpone the stall until the end */
 
+syslog(LOG_ERR, "pending epstall %d\n", privep->epphy);
           privep->pending_stall = true;
         }
 
       priv->zlp_stat = RP2040_ZLP_NONE;
 
-      if (privep->epphy == 2)
-        rp2040_delayedrestart(priv, privep);
     }
 
   spin_unlock_irqrestore(NULL, flags);
