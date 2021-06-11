@@ -1721,6 +1721,8 @@ static int inline usbmsc_setupcmd(FAR struct usbmsc_dev_s *priv,
  *
  ****************************************************************************/
 
+static int skip = 0;
+
 static int usbmsc_idlestate(FAR struct usbmsc_dev_s *priv)
 {
   FAR struct usbmsc_req_s *privreq;
@@ -1732,6 +1734,13 @@ static int usbmsc_idlestate(FAR struct usbmsc_dev_s *priv)
   /* Take a request from the rdreqlist */
 
   flags = enter_critical_section();
+#if 1
+  if (skip)
+    {
+     sq_remfirst(&priv->rdreqlist);
+      skip = 0;
+    }
+#endif
   privreq = (FAR struct usbmsc_req_s *)sq_remfirst(&priv->rdreqlist);
   leave_critical_section(flags);
 
@@ -1778,6 +1787,7 @@ static int usbmsc_idlestate(FAR struct usbmsc_dev_s *priv)
        */
 
       usbtrace(TRACE_CLSERROR(USBMSC_TRACEERR_INVALIDCBWSIGNATURE), 0);
+//syslog(LOG_ERR, "scsi epstall 1\n");
       EP_STALL(priv->epbulkout);
       EP_STALL(priv->epbulkin);
     }
@@ -1795,6 +1805,7 @@ static int usbmsc_idlestate(FAR struct usbmsc_dev_s *priv)
        */
 
       usbtrace(TRACE_CLSERROR(USBMSC_TRACEERR_INVALIDCBWCONTENT), 0);
+//syslog(LOG_ERR, "scsi epstall 2\n");
       EP_STALL(priv->epbulkout);
       EP_STALL(priv->epbulkin);
     }
@@ -2603,6 +2614,7 @@ static int usbmsc_cmdfinishstate(FAR struct usbmsc_dev_s *priv)
                */
 
               nxsig_usleep (100000);
+//syslog(LOG_ERR, "scsi epstall 3\n");
               EP_STALL(priv->epbulkin);
 
               /* now wait for stall to go away .... */
@@ -2633,11 +2645,12 @@ static int usbmsc_cmdfinishstate(FAR struct usbmsc_dev_s *priv)
 
           else
             {
-              sq_remfirst(&priv->rdreqlist);
-
               usbtrace(TRACE_CLSERROR(USBMSC_TRACEERR_CMDFINSHSUBMIT),
                        (uint16_t)priv->residue);
               EP_STALL(priv->epbulkout);
+
+skip = 0;
+//syslog(LOG_ERR, "scsi epstall 4 %x\n", privreq);
             }
 
            priv->theventset |= USBMSC_EVENT_ABORTBULKOUT;
