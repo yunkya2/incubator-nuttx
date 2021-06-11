@@ -47,6 +47,10 @@
 
 #include "hardware/rp2040_resets.h"
 
+#include <nuttx/wdog.h>
+
+static struct wdog_s wdog;
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -1444,6 +1448,12 @@ static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
               rp2040_usbintr_epdone2(privep);
             }
 
+if (RP2040_DPTOEP(i) == 2 + 1)
+{
+usbtrace(TRACE_DEVAPI_USER, 0x4321);
+  wd_cancel(&wdog);
+}
+
           stat &= ~bit;
         }
 
@@ -1521,6 +1531,8 @@ uinfo("setup\n");
                     RP2040_USBCTRL_REGS_SIE_STATUS);
 
       rp2040_usbintr_setup(priv);
+//usbtrace(TRACE_DEVAPI_USER, 0x4322);
+//wd_cancel(&wdog);
     }
 
   if (stat & RP2040_USBCTRL_REGS_INTR_BUS_RESET)
@@ -1529,6 +1541,8 @@ uinfo("setup\n");
                     RP2040_USBCTRL_REGS_SIE_STATUS);
 
       rp2040_usbintr_busreset(priv);
+usbtrace(TRACE_DEVAPI_USER, 0x4323);
+wd_cancel(&wdog);
     }
 
   usbtrace(TRACE_INTEXIT(RP2040_TRACEINTID_USBINTERRUPT), 0);
@@ -1905,26 +1919,48 @@ static int rp2040_epstall_exec(FAR struct usbdev_ep_s *ep)
  *
  ****************************************************************************/
 
-#include <nuttx/wdog.h>
-
-static struct wdog_s wdog;
-
 static void rp2040_restart(wdparm_t arg)
 {
+  FAR struct rp2040_ep_s *privep;
   FAR struct rp2040_usbdev_s *priv;
-  priv = (FAR struct rp2040_usbdev_s *)arg;
+  int i;
 
-  _err("\n\n***** %08x %08x *****\n\n",
-       *(volatile uint32_t *)0x50100094, *(volatile uint32_t *)0x50100098);
+  privep = (FAR struct rp2040_ep_s *)arg;
+  priv = privep->dev;
 
-       *(volatile uint32_t *)0x50100094 = 0x2440;
+  rp2040_update_buffer_control(privep,
+                        ~(RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_STALL),
+                        0);
+  privep->next_pid = 0;
+//  rp2040_rdrequest(privep);
+
+
+  for (i = 0; i < RP2040_NENDPOINTS; i++)
+    {
+      FAR struct rp2040_ep_s *privep = &g_usbdev.eplist[i];
+
+      rp2040_cancelrequests(privep);
+    }
+
+usbtrace(TRACE_DEVAPI_USER, 0x5678);
+
+  rp2040_pullup(&g_usbdev.usbdev, false);
+  if (g_usbdev.driver)
+    {
+      CLASS_DISCONNECT(priv->driver, &priv->usbdev);
+    }
+
+//  _err("\n\n***** %08x %08x *****\n\n",
+//       *(volatile uint32_t *)0x50100094, *(volatile uint32_t *)0x50100098);
+//       *(volatile uint32_t *)0x50100094 = 0x2440;
 }
 
 static void rp2040_delayedrestart(FAR struct rp2040_usbdev_s *priv,
                                   FAR struct rp2040_ep_s *privep)
 {
-
-  wd_start(&wdog, CLOCKS_PER_SEC, rp2040_restart, (wdparm_t)priv);
+#define USB_TIMEOUT  (1 * CLK_TCK / 10)
+usbtrace(TRACE_DEVAPI_USER, 0x1234);
+  wd_start(&wdog, USB_TIMEOUT, rp2040_restart, (wdparm_t)privep);
 }
 
 static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
