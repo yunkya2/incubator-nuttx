@@ -1928,6 +1928,8 @@ static void rp2040_restart(wdparm_t arg)
   privep = (FAR struct rp2040_ep_s *)arg;
   priv = privep->dev;
 
+//syslog(LOG_ERR, "restart****\n");
+
   rp2040_update_buffer_control(privep,
                         ~(RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_STALL),
                         0);
@@ -1959,6 +1961,8 @@ static void rp2040_delayedrestart(FAR struct rp2040_usbdev_s *priv,
                                   FAR struct rp2040_ep_s *privep)
 {
 #define USB_TIMEOUT  (1 * CLK_TCK / 10)
+//#define USB_TIMEOUT  (1 * CLK_TCK / 50)
+//#define USB_TIMEOUT  (10 * CLK_TCK)
 usbtrace(TRACE_DEVAPI_USER, 0x1234);
   wd_start(&wdog, USB_TIMEOUT, rp2040_restart, (wdparm_t)privep);
 }
@@ -1996,6 +2000,8 @@ static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
     }
   else
     {
+if (privep->epphy == 3 || privep->epphy == 2)
+      nxsig_usleep (100000);
       usbtrace(TRACE_EPSTALL, privep->epphy);
       privep->stalled = true;
       if (rp2040_rqempty(privep) || !privep->in || privep->epphy == 2)
