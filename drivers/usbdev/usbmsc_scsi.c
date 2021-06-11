@@ -2633,6 +2633,8 @@ static int usbmsc_cmdfinishstate(FAR struct usbmsc_dev_s *priv)
 
           else
             {
+              sq_remfirst(&priv->rdreqlist);
+
               usbtrace(TRACE_CLSERROR(USBMSC_TRACEERR_CMDFINSHSUBMIT),
                        (uint16_t)priv->residue);
               EP_STALL(priv->epbulkout);
