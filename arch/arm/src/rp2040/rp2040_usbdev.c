@@ -47,6 +47,10 @@
 
 #include "hardware/rp2040_resets.h"
 
+#include <nuttx/wdog.h>
+
+static struct wdog_s wdog;
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -352,6 +356,11 @@ static FAR struct usbdev_req_s *rp2040_epallocreq(FAR struct usbdev_ep_s
                                                   *ep);
 static void rp2040_epfreereq(FAR struct usbdev_ep_s *ep,
                              FAR struct usbdev_req_s *req);
+#ifdef CONFIG_USBDEV_DMA
+static FAR void *rp2040_epallocbuffer(FAR struct usbdev_ep_s *ep,
+                                      uint16_t nbytes);
+static void rp2040_epfreebuffer(FAR struct usbdev_ep_s *ep, FAR void *buf);
+#endif
 static int rp2040_epsubmit(FAR struct usbdev_ep_s *ep,
                            FAR struct usbdev_req_s *privreq);
 static int rp2040_epcancel(FAR struct usbdev_ep_s *ep,
@@ -394,6 +403,10 @@ static const struct usbdev_ops_s g_devops =
 {
   .allocep     = rp2040_allocep,
   .freeep      = rp2040_freeep,
+#ifdef CONFIG_USBDEV_DMA
+  .allocbuffer = rp2040_epallocbuffer,
+  .freebuffer  = rp2040_epfreebuffer,
+#endif
   .getframe    = rp2040_getframe,
   .wakeup      = rp2040_wakeup,
   .selfpowered = rp2040_selfpowered,
@@ -495,20 +508,40 @@ static void rp2040_update_buffer_control(FAR struct rp2040_ep_s *privep,
 static int rp2040_epwrite(FAR struct rp2040_ep_s *privep, FAR uint8_t *buf,
                           uint16_t nbytes)
 {
+  uint16_t bytesleft;
   uint32_t val;
   irqstate_t flags;
 
+  bytesleft = RP2040_BULKMAXPACKET;
+  if (bytesleft > nbytes)
+    {
+      bytesleft = nbytes;
+    }
+
+  usbtrace(TRACE_WRITE(privep->epphy), bytesleft); /* TBD */
+
   /* Copy the transmit data into DPSRAM */
 
-  memcpy(privep->data_buf, buf, nbytes);
+  memcpy(privep->data_buf, buf, bytesleft);
 
   val = nbytes |
         RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_AVAIL |
         RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_FULL |
         (privep->next_pid ?
          RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_DATA1_PID : 0);
+usbtrace(TRACE_DEVAPI_USER, privep->next_pid + 2 + (privep->epphy << 4));
+
+    /*  RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LAST */
 
   privep->next_pid = 1 - privep->next_pid;    /* Invert DATA0 <-> DATA1 */
+
+  /* Send NULL packet request */
+#if 0
+  if (privep->txnullpkt)
+    {
+      ctrl |= USB_SENDNULL;
+    }
+#endif
 
   /* Start the transfer */
 
@@ -516,7 +549,7 @@ static int rp2040_epwrite(FAR struct rp2040_ep_s *privep, FAR uint8_t *buf,
   rp2040_update_buffer_control(privep, 0, val);
   spin_unlock_irqrestore(NULL, flags);
 
-  return nbytes;
+  return bytesleft;
 }
 
 /****************************************************************************
@@ -532,10 +565,15 @@ static int rp2040_epread(FAR struct rp2040_ep_s *privep, uint16_t nbytes)
   uint32_t val;
   irqstate_t flags;
 
+  usbtrace(TRACE_READ(privep->epphy), nbytes); /* TBD */
+
   val = nbytes |
         RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_AVAIL |
         (privep->next_pid ?
          RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_DATA1_PID : 0);
+usbtrace(TRACE_DEVAPI_USER, privep->next_pid + 0 + (privep->epphy << 4));
+
+    /*  RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LAST */
 
   privep->next_pid = 1 - privep->next_pid;    /* Invert DATA0 <-> DATA1 */
 
@@ -789,6 +827,13 @@ static int rp2040_rdrequest(FAR struct rp2040_ep_s *privep)
 
   /* Receive the next packet */
 
+#if 0
+  if (!IS_BS_HOST_BUSY(desc))  /* TBD */
+    {
+      return OK;
+    }
+#endif
+
   usbtrace(TRACE_READ(privep->epphy), privreq->req.len);
 
   return rp2040_epread(privep, privreq->req.len);
@@ -903,6 +948,7 @@ static void rp2040_dispatchrequest(FAR struct rp2040_usbdev_s *priv)
           priv->stalled = true;
         }
 
+      /* TBD */
       if (!priv->stalled && USB_REQ_ISOUT(priv->ctrl.type))
         {
           priv->zlp_stat = RP2040_ZLP_NONE; /* already sent */
@@ -1015,6 +1061,7 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
                         break;
                     }
                 }
+//              rp2040_start_transfer(&priv->eplist[0], &resp, 2);
             }
             break;
 
@@ -1074,7 +1121,8 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
                 {
                   rp2040_dispatchrequest(priv);
                 }
-              else if (value == USB_FEATURE_ENDPOINTHALT && len == 0 &&
+              else if ( // priv->paddrset != 0 &&
+                       value == USB_FEATURE_ENDPOINTHALT &&
                        (privep = rp2040_epfindbyaddr(priv, index)) != NULL)
                 {
                   rp2040_epstall(&privep->ep, true);
@@ -1099,6 +1147,7 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
 
               usbtrace(TRACE_INTDECODE(RP2040_TRACEINTID_SETADDRESS), value);
               priv->dev_addr = value & 0xff;
+//              rp2040_epwrite(ep0, NULL, 0);
             }
             break;
 
@@ -1187,6 +1236,8 @@ static void rp2040_ep0setup(FAR struct rp2040_usbdev_s *priv)
       rp2040_epstall(&priv->eplist[0].ep, false);
       rp2040_epstall(&priv->eplist[1].ep, false);
     }
+
+  /* TBD */
   else if (priv->zlp_stat != RP2040_ZLP_NONE)
     {
       rp2040_handle_zlp(priv);
@@ -1255,6 +1306,8 @@ static void rp2040_usbintr_ep0out(FAR struct rp2040_usbdev_s *priv,
   len = getreg32(privep->buf_ctrl)
         & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
 
+  uinfo("done %d\n", len);
+
   if (len == 0)
     {
       privep->next_pid = 1;
@@ -1307,6 +1360,14 @@ static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
           clrbits_reg32(bit, RP2040_USBCTRL_REGS_BUFF_STATUS);
           privep = &priv->eplist[RP2040_DPTOEP(i)];
 
+          int len;
+
+          len = getreg32(privep->buf_ctrl)
+                         & RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_LEN_MASK;
+
+//          uinfo("\x1b[1m" "EP:%02x %d" "\x1b[0m" "\n",
+//                privep->ep.eplog, len);
+
           if (i == 1)
             {
               rp2040_usbintr_ep0out(priv, privep);
@@ -1335,6 +1396,12 @@ static bool rp2040_usbintr_buffstat(FAR struct rp2040_usbdev_s *priv)
                   rp2040_rxcomplete(privep);
                 }
             }
+
+if (RP2040_DPTOEP(i) == 2 + 1)
+{
+usbtrace(TRACE_DEVAPI_USER, 0x4321);
+  wd_cancel(&wdog);
+}
 
           stat &= ~bit;
         }
@@ -1398,6 +1465,8 @@ static int rp2040_usbinterrupt(int irq, FAR void *context, FAR void *arg)
 
   usbtrace(TRACE_INTENTRY(RP2040_TRACEINTID_USBINTERRUPT), 0);
 
+//  uinfo("irq=%d context=%p stat=0x%lx\n", irq, context, stat);
+
   if (stat & RP2040_USBCTRL_REGS_INTR_BUFF_STATUS)
     {
       while (rp2040_usbintr_buffstat(priv))
@@ -1406,10 +1475,13 @@ static int rp2040_usbinterrupt(int irq, FAR void *context, FAR void *arg)
 
   if (stat & RP2040_USBCTRL_REGS_INTR_SETUP_REQ)
     {
+uinfo("setup\n");
       clrbits_reg32(RP2040_USBCTRL_REGS_SIE_STATUS_SETUP_REC,
                     RP2040_USBCTRL_REGS_SIE_STATUS);
 
       rp2040_usbintr_setup(priv);
+//usbtrace(TRACE_DEVAPI_USER, 0x4322);
+//wd_cancel(&wdog);
     }
 
   if (stat & RP2040_USBCTRL_REGS_INTR_BUS_RESET)
@@ -1418,6 +1490,8 @@ static int rp2040_usbinterrupt(int irq, FAR void *context, FAR void *arg)
                     RP2040_USBCTRL_REGS_SIE_STATUS);
 
       rp2040_usbintr_busreset(priv);
+usbtrace(TRACE_DEVAPI_USER, 0x4323);
+wd_cancel(&wdog);
     }
 
   usbtrace(TRACE_INTEXIT(RP2040_TRACEINTID_USBINTERRUPT), 0);
@@ -1590,6 +1664,47 @@ static void rp2040_epfreereq(FAR struct usbdev_ep_s *ep,
 }
 
 /****************************************************************************
+ * Name: rp2040_epallocbuffer
+ *
+ * Description:
+ *   Allocate an I/O buffer
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_USBDEV_DMA
+static FAR void *rp2040_epallocbuffer(FAR struct usbdev_ep_s *ep,
+                                      uint16_t bytes)
+{
+  FAR struct rp2040_ep_s *privep = (FAR struct rp2040_ep_s *)ep;
+
+  UNUSED(privep);
+  usbtrace(TRACE_EPALLOCBUFFER, privep->epphy);
+
+  return kmm_malloc(bytes);
+}
+#endif
+
+/****************************************************************************
+ * Name: rp2040_epfreebuffer
+ *
+ * Description:
+ *   Free an I/O buffer
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_USBDEV_DMA
+static void rp2040_epfreebuffer(FAR struct usbdev_ep_s *ep, FAR void *buf)
+{
+  FAR struct rp2040_ep_s *privep = (FAR struct rp2040_ep_s *)ep;
+
+  UNUSED(privep);
+  usbtrace(TRACE_EPFREEBUFFER, privep->epphy);
+
+  kmm_free(buf);
+}
+#endif
+
+/****************************************************************************
  * Name: rp2040_epsubmit
  *
  * Description:
@@ -1637,6 +1752,16 @@ static int rp2040_epsubmit(FAR struct usbdev_ep_s *ep,
       rp2040_rqenqueue(privep, privreq);
       usbtrace(TRACE_INREQQUEUED(privep->epphy), privreq->req.len);
 
+#if 0
+      /* If IN transaction has been requested, clear NAK bit to be able
+       * to raise IN interrupt to start IN packets.
+       */
+
+      if (privep->txwait)
+        {
+          rp2040_wrrequest(privep); /* OK ? */
+        }
+#endif
       if (empty)
         {
           rp2040_wrrequest(privep);
@@ -1742,6 +1867,55 @@ static int rp2040_epstall_exec(FAR struct usbdev_ep_s *ep)
  *
  ****************************************************************************/
 
+static void rp2040_restart(wdparm_t arg)
+{
+  FAR struct rp2040_ep_s *privep;
+  FAR struct rp2040_usbdev_s *priv;
+  int i;
+
+  privep = (FAR struct rp2040_ep_s *)arg;
+  priv = privep->dev;
+
+syslog(LOG_ERR, "restart****\n");
+
+  rp2040_update_buffer_control(privep,
+                        ~(RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_STALL),
+                        0);
+  privep->next_pid = 0;
+//  rp2040_rdrequest(privep);
+
+
+  for (i = 0; i < RP2040_NENDPOINTS; i++)
+    {
+      FAR struct rp2040_ep_s *privep = &g_usbdev.eplist[i];
+
+      rp2040_cancelrequests(privep);
+    }
+
+usbtrace(TRACE_DEVAPI_USER, 0x5678);
+
+  rp2040_pullup(&g_usbdev.usbdev, false);
+  if (g_usbdev.driver)
+    {
+      CLASS_DISCONNECT(priv->driver, &priv->usbdev);
+    }
+  rp2040_pullup(&g_usbdev.usbdev, true);
+
+//  _err("\n\n***** %08x %08x *****\n\n",
+//       *(volatile uint32_t *)0x50100094, *(volatile uint32_t *)0x50100098);
+//       *(volatile uint32_t *)0x50100094 = 0x2440;
+}
+
+static void rp2040_delayedrestart(FAR struct rp2040_usbdev_s *priv,
+                                  FAR struct rp2040_ep_s *privep)
+{
+#define USB_TIMEOUT  (1 * CLK_TCK / 10)
+//#define USB_TIMEOUT  (1 * CLK_TCK / 50)
+//#define USB_TIMEOUT  (10 * CLK_TCK)
+usbtrace(TRACE_DEVAPI_USER, 0x1234);
+  wd_start(&wdog, USB_TIMEOUT, rp2040_restart, (wdparm_t)privep);
+}
+
 static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
 {
   FAR struct rp2040_ep_s *privep = (FAR struct rp2040_ep_s *)ep;
@@ -1764,19 +1938,27 @@ static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
 
       rp2040_update_buffer_control(privep,
                         ~(RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_STALL),
+//                          RP2040_USBCTRL_DPSRAM_EP_BUFF_CTRL_DATA1_PID),
                         0);
 
-      privep->next_pid = 0;
+//      if (rp2040_rqempty(privep))
+        privep->next_pid = 0;
+//      else
+//        privep->next_pid = 1;
       priv->zlp_stat = RP2040_ZLP_NONE;
     }
   else
     {
+//if (privep->epphy == 3 || privep->epphy == 2)
+syslog(LOG_ERR, "epstall %d\n", privep->epphy);
+
       privep->stalled = true;
 
       if (privep->epphy == 0 && !rp2040_rqempty(privep))
         {
           /* EP0 IN Transfer ongoing : postpone the stall until the end */
 
+syslog(LOG_ERR, "pending epstall %d\n", privep->epphy);
           privep->pending_stall = true;
         }
       else
@@ -1784,6 +1966,11 @@ static int rp2040_epstall(FAR struct usbdev_ep_s *ep, bool resume)
           /* Stall immediately */
 
           rp2040_epstall_exec(ep);
+
+          if (!privep->in)
+            {
+              rp2040_delayedrestart(priv, privep);
+            }
         }
 
       priv->zlp_stat = RP2040_ZLP_NONE;
