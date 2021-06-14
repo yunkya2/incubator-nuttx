@@ -129,7 +129,8 @@ usbtrace_idset_t usbtrace_enable(usbtrace_idset_t idset)
 
   flags         = enter_critical_section();
   ret           = g_maskedidset;
-  g_maskedidset = idset;
+//  g_maskedidset = idset;
+  g_maskedidset = 0xffffffff;
   leave_critical_section(flags);
   return ret;
 }
@@ -145,6 +146,7 @@ usbtrace_idset_t usbtrace_enable(usbtrace_idset_t idset)
  *   May be called from an interrupt handler
  *
  ****************************************************************************/
+int xxx = 0;
 
 #if defined(CONFIG_USBDEV_TRACE) || (defined(CONFIG_DEBUG_FEATURES) && defined(CONFIG_DEBUG_USB))
 void usbtrace(uint16_t event, uint16_t value)
@@ -154,6 +156,10 @@ void usbtrace(uint16_t event, uint16_t value)
   /* Check if tracing is enabled for this ID */
 
   flags = enter_critical_section();
+  g_maskedidset = 0xffffffff;
+xxx++;
+if (xxx > 2000) g_maskedidset = 0;
+
   if ((g_maskedidset & TRACE_ID2BIT(event)) != 0)
     {
 #ifdef CONFIG_USBDEV_TRACE
